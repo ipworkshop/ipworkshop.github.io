@@ -1,0 +1,9 @@
+{
+  "position": 5,
+  "label": "Rust in Embedded",
+  "collapsible": true,
+  "collapsed": true,
+  "customProps": {
+    "description": "Learn how to develop for embedded systems in Rust"
+  }
+}

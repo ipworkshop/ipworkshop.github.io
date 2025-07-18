@@ -1,0 +1,9 @@
+{
+  "position": 6,
+  "label": "Rust for Desktop Applications",
+  "collapsible": true,
+  "collapsed": true,
+  "customProps": {
+    "description": "Learn how to develop desktop applications in Rust"
+  }
+}

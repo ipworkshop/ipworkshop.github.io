@@ -1,0 +1,9 @@
+{
+  "position": 1,
+  "label": "3D Printing",
+  "collapsible": true,
+  "collapsed": true,
+  "customProps": {
+    "description": "Learn how to use 3D printers, find, modify and print models"
+  }
+}

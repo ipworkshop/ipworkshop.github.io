@@ -1,0 +1,9 @@
+{
+  "position": 7,
+  "label": "Blockchain",
+  "collapsible": true,
+  "collapsed": true,
+  "customProps": {
+    "description": "Learn how to develop blockchain applications"
+  }
+}

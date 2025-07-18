@@ -1,0 +1,9 @@
+{
+  "position": 4,
+  "label": "Autonomous Cars",
+  "collapsible": true,
+  "collapsed": true,
+  "customProps": {
+    "description": "Build autonomous cars and race them on the track"
+  }
+}

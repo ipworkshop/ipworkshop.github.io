@@ -1,0 +1,9 @@
+{
+  "position": 3,
+  "label": "Cloud Operations",
+  "collapsible": true,
+  "collapsed": true,
+  "customProps": {
+    "description": "Learn how to build and deploy servers using Kubernetes"
+  }
+}
