@@ -76,7 +76,7 @@ const config: Config = {
       title: 'IP Workshop Summer School',
       logo: {
         alt: 'My Site Logo',
-        src: 'img/logo-ipworkshop.png',
+        src: 'img/logo.png',
       },
       items: [
         {
