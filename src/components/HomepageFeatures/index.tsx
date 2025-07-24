@@ -28,7 +28,7 @@ Bring advanced technologies to life through hands-on projects—from blockchain 
     ),
   },
   {
-    title: 'Exhange ideas with others',
+    title: 'Exchange ideas with others',
     Svg: require('@site/static/img/undraw_conversation_15p8.svg').default,
     description: (
       <>
