@@ -11,32 +11,28 @@ type FeatureItem = {
 
 const FeatureList: FeatureItem[] = [
   {
-    title: 'Easy to Use',
-    Svg: require('@site/static/img/undraw_docusaurus_mountain.svg').default,
+    title: 'Courses',
+    Svg: require('@site/static/img/undraw_teaching_58yg.svg').default,
     description: (
       <>
-        Docusaurus was designed from the ground up to be easily installed and
-        used to get your website up and running quickly.
-      </>
+	
+Choose from courses designed to introduce cutting-edge technologies—from 3D printing and IoT to Rust, blockchain, and autonomous cars. Each participant may select one course to attend.      </>
     ),
   },
   {
-    title: 'Focus on What Matters',
-    Svg: require('@site/static/img/undraw_docusaurus_tree.svg').default,
+    title: 'Projects',
+    Svg: require('@site/static/img/undraw_project-team_dip6.svg').default,
     description: (
       <>
-        Docusaurus lets you focus on your docs, and we&apos;ll do the chores. Go
-        ahead and move your docs into the <code>docs</code> directory.
-      </>
+Bring advanced technologies to life through hands-on projects—from blockchain and embedded systems to cloud infrastructure and autonomous vehicles.      </>
     ),
   },
   {
-    title: 'Powered by React',
-    Svg: require('@site/static/img/undraw_docusaurus_react.svg').default,
+    title: 'Exchange ideas with others',
+    Svg: require('@site/static/img/undraw_conversation_15p8.svg').default,
     description: (
       <>
-        Extend or customize your website layout by reusing React. Docusaurus can
-        be extended while reusing the same header and footer.
+Connect and exchange ideas with fellow students—collaborate, learn from diverse perspectives, and grow together in a dynamic tech community.
       </>
     ),
   },
