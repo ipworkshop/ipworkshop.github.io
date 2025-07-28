@@ -58,6 +58,65 @@ pipx ensurepath
 
 TODO: add board description and features
 
-## Tock OS
+## Tock
 
-TODO: add overview
+Tock is an open-source embedded operating system for microcontrollers written in Rust. The operating system is designed to isolate components so untrusted third-party applications can run in a protected environment. Tock supports multiple platforms, such as RISC-V, Cortex-M or X86.
+
+### Architecture
+
+Tock uses a microkernel architecture: complex drivers and services are often implemented as untrusted processes, which other processes, such as applications, can invoke through inter-process communication (IPC).
+Tock supports running multiple, independent applications written in any compiled language.
+
+![Tock stack](https://book.tockos.org/imgs/tock-stack.png)
+
+The above Figure shows Tock's architecture. Code falls into one of three categories: the **core kernel**, **capsules**, and **processes**.
+
+The core kernel and capsules are both written in Rust. Rust is a type-safe systems language; other documents discuss the language and its implications to kernel design in greater detail, but the key idea is that Rust code can't use memory differently than intended (e.g., overflow buffers, forge pointers, or have pointers to dead stack frames). Because these restrictions prevent many things that an OS kernel has to do (such as access a peripheral that exists at a memory address specified in a datasheet), the very small core kernel is allowed to break them by using *"unsafe"* Rust code. Capsules, however, cannot use unsafe features. This means that the core kernel code is very small and carefully written, while new capsules added to the kernel are safe code and so do not have to be trusted.
+
+Processes can be written in any language. The kernel protects itself and other processes from bad process code by using a hardware memory protection unit (MPU). If a process tries to access memory it's not allowed to, this triggers an exception. The kernel handles this exception and kills the process.
+
+The kernel provides four major system calls:
+
+* `command`: makes a call from the process into the kernel
+* `subscribe`: registers a callback in the process for an upcall from the kernel
+* `allow`: gives kernel access to memory in the process
+* `yield`: suspends process until after a callback is invoked
+
+Every system call except yield is non-blocking. Commands that might take a long time (such as sending a message over a UART) return immediately and issue a callback when they complete. The yield system call blocks the process until a callback is invoked; userland code typically implements blocking functions by invoking a command and then using yield to wait until the callback completes.
+
+The command, subscribe, and allow system calls all take a driver ID as their first parameter. This indicates which driver in the kernel that system call is intended for. Drivers are capsules that implement the system call.
+
+### Capsule
+
+A capsule is a kernel component acting as a device driver, or system service capsule. Capsules sit between the low-level drivers of the core kernel and use the HIL traits to interact with them, and the userspace applications, which utilize the `Syscall` interface.
+
+## Hands-on Workshop
+
+### Flashing the kernel
+
+Initially, you will need to clone the Tock [repository](https://example.com). To compile the board kernel, you can use the `cargo flash` utility.
+
+```shell
+cd boards/cy8cproto_62_4343_w
+cargo flash
+```
+
+If you did everything correctly, you should be able to use the `tockloader listen` command to interact with the kernel. When prompted to select a serial port, pick the one that ends with `KitProg3 CMSIS-DAP`.
+
+```shell
+tockloader listen
+[INFO   ] No device name specified. Using default name "tock".
+[INFO   ] No serial port with device name "tock" found.
+[INFO   ] Found 2 serial ports.
+Multiple serial port options found. Which would you like to use?
+[0]     /dev/cu.debug-console - n/a
+[1]     /dev/cu.usbmodem1103 - KitProg3 CMSIS-DAP
+
+Which option? [0] 1
+[INFO   ] Using "/dev/cu.usbmodem1103 - KitProg3 CMSIS-DAP".
+[INFO   ] Listening for serial output
+
+$tock
+```
+
+### Compiling an application
