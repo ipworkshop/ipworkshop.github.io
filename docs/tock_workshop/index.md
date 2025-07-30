@@ -26,12 +26,13 @@ This tool is an embedded debugging and target interaction toolkit. It enables it
 
 The simplest installation method involves using the `cargo` packet manager, but first you have to install the prerequisites:
 
-- On Debian-based Linux, use the following command:
+* On Debian-based Linux, use the following command:
+
 ```shell
 sudo apt install -y pkg-config libudev-dev cmake git
 ```
 
-- On Mac OS and Windows, no additional setup is needed.
+* On Mac OS and Windows, no additional setup is needed.
 
 After that, use `cargo` to install `probe-rs`:
 
