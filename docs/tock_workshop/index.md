@@ -24,13 +24,22 @@ info: The currently active `rustc` version is `rustc 1.86.0 (05f9846f8 2025-03-3
 
 This tool is an embedded debugging and target interaction toolkit. It enables its user to program and debug microcontrollers via a debug probe.
 
-The simplest installation method involves using the `cargo` packet manager:
+The simplest installation method involves using the `cargo` packet manager, but first you have to install the prerequisites:
+
+- On Debian-based Linux, use the following command:
+```shell
+sudo apt install -y pkg-config libudev-dev cmake git
+```
+
+- On Mac OS and Windows, no additional setup is needed.
+
+After that, use `cargo` to install `probe-rs`:
 
 ```shell
 cargo install probe-rs-tools --locked
 ```
 
-If you are using Linux, you will also need to add this [udev](https://probe.rs/files/69-probe-rs.rules) file in `/etc/udev/rules.d`. Then, run:
+If you are using Linux, you will also need to add this [udev](https://probe.rs/files/69-probe-rs.rules) file in `/etc/udev/rules.d`. Then, run as root:
 
 ```shell
 udevadm control --reload # to ensure the new rules are used.
@@ -186,7 +195,7 @@ impl SyscallDriver for MockCapsule {
 ```
 
 :::note Module definition
-Do not forget to add `pub mod mock;` in the crate's `lib.rs` file.
+Do not forget to add `pub mod mock;` in `capsules/extra/src/lib.rs`.
 :::
 
 The next step is to implement the handling of specific commands. The convention is that the first command (`0`) to be an *"exists"* command, that is usually used to check wether a driver is present or not in the board configuration, and it should simply return a `CommandReturn::success()`.
