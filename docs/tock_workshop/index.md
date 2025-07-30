@@ -245,3 +245,69 @@ pub unsafe fn main() {
     // ...
 }
 ```
+
+### Writing an application
+
+To test the capsule we just created, we will need an application. This app will check if the driver is present in the kernel configuration, then it will issue a *"print"* command to the driver every second.
+
+The simplest way to do this is to create a new entry in the `examples` directory, then import the `Makefile` from the `blink` example. We will also need to create an API for issuing commands to the capsule. This is usually done in a separate `.c` file, and further exposed in a header file to be used by application developers, but for the task at hand, defining them in `main.c` will work.
+
+```c title="examples/ws-mock-test/main.c"
+#include <libtock/tock.h>
+
+#define MOCK_DRIVER_NUM 0x9000A
+#define MOCK_EXIST 0x0
+#define MOCK_PRINT 0x1
+
+int check_mock_driver_exists(void);
+int mock_print(void);
+
+int check_mock_driver_exists(void) {
+  syscall_return_t ret = command(MOCK_DRIVER_NUM, MOCK_EXIST, 0, 0);
+  return tock_command_return_novalue_to_returncode(ret);
+}
+
+int mock_print(void) {
+  syscall_return_t ret = command(MOCK_DRIVER_NUM, MOCK_PRINT, 0, 0);
+  return tock_command_return_novalue_to_returncode(ret);
+}
+
+int main(void) {
+}
+```
+
+:::note `tock.h` API
+The `syscall_return_t` type is the representation of the `CommandReturn` type seen in kernel. Tock supports returning either a success or error response to system calls, along with a payload of up to two `u32`s in size. The developer must be aware of the return type used by a respective command of a driver to correctly decode the response message. In our case, both commands used return no payload so the `tock_command_return_novalue_to_returncode`.
+:::
+
+Now, we need to complete the implementation of the main function.
+
+```c title="example/ws-mock-test/main.c"
+#include <libtock/tock.h>
+
+#include <libtock-sync/services/alarm.h>
+
+// Headers for `printf`
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
+
+// ... 
+
+int main(void) {
+  printf("Mock capsule test\n");
+
+  int err = check_mock_driver_exists();
+  if (err < 0) {
+    printf("Mock capsule missing");
+    return err;
+  }
+
+  while (true) {
+    mock_print();
+    // This delay uses an underlying alarm in the kernel.
+    libtocksync_alarm_delay_ms(1000);
+  }
+}
+```
