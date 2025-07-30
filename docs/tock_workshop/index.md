@@ -154,8 +154,8 @@ Which option? [0] 1
 [INFO   ] Listening for serial output
 
 $tock list
-
-TODO: add app list output
+ PID    ShortID    Name                Quanta  Syscalls  Restarts  Grants  State
+ 0      Unique     blink                    0        84         0   1/ 8   Yielded
 ```
 
 ### Building a capsule
