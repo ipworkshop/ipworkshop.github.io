@@ -205,7 +205,7 @@ We also need to add our print command, on command number `1`. For serial debug p
 
 With our capsule implementation done, we need to add it to the board's configuration. We need to add a field for the capsule in the board's `Cy8cproto0624343w` structure.
 
-```rust title="boards/cy8cproto_62_4343_w/main.rs"
+```rust title="boards/cy8cproto_62_4343_w/src/main.rs"
 /// Supported drivers by the platform
 pub struct Cy8cproto0624343w {
     // ... Previous lines removed for simplicity
@@ -311,4 +311,190 @@ int main(void) {
     libtocksync_alarm_delay_ms(1000);
   }
 }
+```
+
+To test the application, run the `make` command in the example's root directory, change the `APP` Makefile variable in the board's directory and run `make program`.
+
+### Periodic Print
+
+We want to modify the capsule now, so that it prints a message every second, without the application's intervention. First we must modify the `Mock` capsule structure, to include a reference to an *"Alarm source"*. To do so, we should make the structure generic over any implementor of the `hil`
+
+```rust title="capsules/extra/src/mock.rs"
+use kernel::hil::time;
+
+pub struct MockCapsule<'a, A: time::Alarm<'a>> {
+    alarm: &'a A,
+}
+
+impl<'a, A: time::Alarm<'a>> MockCapsule<'a, A> {
+    pub fn new(alarm: &'a A) -> Self {
+        Self { alarm }
+    }
+}
+
+// ...
+```
+
+:::note `impl` block
+Do not forget to change the `SyscallDriver` implementation block to use the newly added generic and lifetime.
+:::
+
+#### Tock `Alarm` design
+
+Tock is asynchronous by design, and any time consuming operation, such as adding delays in code, must not block the execution of the kernel. Non-blocking delays using a callback based mechanism, where the piece of code that must await a period of time arms an alarm using the interface exposed by the `time::Alarm` trait, and the underlying alarm will call a previously defined function at the expiration moment. The function to be invoked is specified by implementing the `time::AlarmClient`, and is the sole method `alarm`.
+
+In our case, the implementation is straight forward. The capsule will print a message, and then re-arm the alarm:
+
+```rust title="capsules/extra/src/mock.rs"
+use kernel::hil::time::ConvertTicks;
+
+// ...
+
+impl<'a, A: time::Alarm<'a>> MockCapsule<'a, A> {
+    pub fn new(alarm: &'a A) -> Self { /* ... */}
+
+    // We must also add an `init` function to start this cycle.
+    pub fn init(&'a self) {
+        let dt = self.alarm.ticks_from_seconds(1);
+        self.alarm.set_alarm(self.alarm.now(), dt);
+    }
+}
+
+impl<'a, A: time::Alarm<'a>> AlarmClient for MockCapsule<'a, A> {
+    fn alarm(&self) {
+        kernel::debug!("Periodic \"hi\" message");
+        let dt = self.alarm.ticks_from_seconds(1);
+        self.alarm.set_alarm(self.alarm.now(), dt);
+    }
+}
+```
+
+#### `Component` system
+
+In Tock, initializing a board mainly consists of three steps:
+
+1. Setting any MCU-specific configurations necessary for the MCU to operate correctly.
+2. Statically declaring memory for various kernel resources (i.e. capsules) and configuring the capsules correctly.
+3. Loading processes, configuring the core kernel, and starting the kernel.
+
+Components are designed to simplify the second step (configuring capsules) while also reducing the chance for misconfiguration or other setup errors. A component encapsulates peripheral-specific and capsule-specific initialization for the Tock kernel in a factory method, which reduces repeated code and simplifies the boot sequence.
+
+The `Component` trait encapsulates all of the initialization and configuration of a kernel extension inside the `Component::finalize()` function call. The `Component::Output` type defines what type this component generates. Note that instantiating a component does not instantiate the underlying `Component::Output` type; instead, the memory is statically allocated and provided as an argument to the `Component::finalize()` method, which correctly initializes the memory to instantiate the `Component::Output` object. If instantiating and initializing the `Component::Output` type requires parameters, these should be passed in the component's `new()` function.
+
+Using a component is as follows:
+
+```rust
+let obj = CapsuleComponent::new(configuration, required_hw)
+    .finalize(capsule_component_static!());
+```
+
+All required resources and configuration is passed via the constructor, and all required static memory is defined by the `[name]_component_static!()` macro and passed to the `finalize()` method.
+
+As mentioned before, the capsule will need an alarm source. Most microcontrollers do not have an abundance of hardware sources to fulfill the needs of every scenario, so there is a need to multiplex one or more time-sources to be able to configure multiple alarms. Tock has support for this through `VirtualMuxAlarms` which act as alarm sources but all multiplex a single `MuxAlarm`, backed by a board's peripheral.
+
+The component must receive a **static** reference to a generic `MuxAlarm`, and should create and setup a new virtual alarm instance, whose client must be the mock capsule it will generate. As a result, the component will need a static memory regions (`StaticInput` type) for both the `MockCapsule` and the `VirtualMuxAlarm`.
+
+```rust title="boards/components/src/mock.rs"
+pub struct MockCapsuleComponent<A: 'static + Alarm<'static>> {
+    alarm_mux: &'static MuxAlarm<'static, A>,
+}
+
+impl<A: 'static + Alarm<'static>> MockCapsuleComponent<A> {
+    pub fn new(alarm_mux: &'static MuxAlarm<'static, A>) -> Self {
+        Self { alarm_mux }
+    }
+}
+
+impl<A: 'static + Alarm<'static>> Component for MockCapsuleComponent<A> {
+    type StaticInput = (
+        &'static mut MaybeUninit<VirtualMuxAlarm<'static, A>>,
+        &'static mut MaybeUninit<MockCapsule<'static, VirtualMuxAlarm<'static, A>>>,
+    );
+
+    type Output = &'static MockCapsule<'static, VirtualMuxAlarm<'static, A>>;
+
+    fn finalize(self, static_memory: Self::StaticInput) -> Self::Output {
+        let virtual_alarm = static_memory.0.write(VirtualMuxAlarm::new(self.alarm_mux));
+        virtual_alarm.setup();
+
+        let mock = static_memory.1.write(MockCapsule::new(virtual_alarm));
+        virtual_alarm.set_alarm_client(mock);
+
+        mock
+    }
+}
+```
+
+The allocation of the memory segments is usually done through a marco. It is out of this workshop's scope to dive into writing macros, but the macro bellow takes a `type` that must implement the `hil::time::Alarm` trait and returns a tuple of static mutable references to `MaybeUninit` wrappers of the `VirtualMuxAlarm` nad the `MockCapsule`.
+
+```rust title="boards/components/src/mock.rs"
+// ...
+
+#[macro_export]
+macro_rules! mock_component_static {
+    ($A:ty $(,)?) => {{
+        let virtual_alarm = kernel::static_buf!(
+            capsules_core::virtualizers::virtual_alarm::VirtualMuxAlarm<'static, $A>
+        );
+
+        let mock = kernel::static_buf!(
+            capsules_extra::mock::MockCapsule<'static, VirtualMuxAlarm<'static, $A>>
+        );
+
+        (virtual_alarm, mock)
+    };};
+}
+```
+
+:::note `MaybeUninit`
+`MaybeUninit<T>` in Rust is a special wrapper type that allows you to safely work with memory that has not been initialized yet. Normally, Rust enforces that all variables are fully initialized before use to maintain memory safety. However, some situations require allocating memory first and filling it later.
+:::
+
+#### Refactor board's configuration
+
+Because we made fundamental changes to the capsule, we need to make a few modifications in order to run the kernel.
+
+```rust title="boards/cy8cproto_62_4343_w/src/main.rs"
+/// Supported drivers by the platform
+pub struct Cy8cproto0624343w {
+    // ...
+    systick: cortexm0p::systick::SysTick,
+    // highlight-start
+    mock_capsule: &'static capsules_extra::mock::MockCapsule<
+        'static,
+        VirtualMuxAlarm<'static, psoc62xa::tcpwm::Tcpwm0<'static>>,
+    >,
+    // highlight-end
+}
+
+// ... 
+
+pub unsafe fn main() {
+    // ...
+
+    // highlight-start
+    let mock_capsule = components::mock::MockCapsuleComponent::new(mux_alarm)
+        .finalize(components::mock_component_static!(psoc62xa::tcpwm::Tcpwm0));
+    mock_capsule.init();
+    // highlight-end
+
+    let cy8cproto0624343w = Cy8cproto0624343w {
+        // ...
+        gpio,
+        // Currently, the CPU runs at 8MHz, that being the frequency of the IMO.
+        systick: cortexm0p::systick::SysTick::new_with_calibration(8_000_000),
+        // highlight-next-line
+        mock_capsule
+    };
+
+    // ...
+    
+}
+```
+
+To test our modifications, as now we no longer need an application, run:
+
+```shell
+probe-rs erase --chip CY8C624ABZI-S2D44
+make flash
 ```
