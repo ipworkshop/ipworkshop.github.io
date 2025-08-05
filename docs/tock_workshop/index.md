@@ -498,3 +498,398 @@ To test our modifications, as now we no longer need an application, run:
 probe-rs erase --chip CY8C624ABZI-S2D44
 make flash
 ```
+
+### Temperature Sensor Capsule
+
+For this task, we will have to read the ambient temperature using the onboard thermistor. A thermistor is a temperature-sensitive resistor in which resistance varies with temperature. The thermistor is in a voltage divider configuration which can be seen bellow:
+
+![Thermistor Configuration](./assets/Thermistor.webp)
+
+Given that the current flowing through $R_{ref}$ also flows through the thermistor:
+
+$$
+\frac{V_1 - V_0}{R_{therm}} = \frac{V_2 - V_1}{R_{ref}}
+$$
+
+The [Steinhart-Hart](https://en.wikipedia.org/wiki/Steinhart–Hart_equation) equation describes the resistance change of a semiconductor thermistor as related to its temperature. The following equation shows it to be a third-order logarithmic polynomial using three constants.
+
+$$
+\frac{1}{T_K} = A + B \cdot \ln(R) + C \cdot \ln(R)^3
+$$
+
+Where $A$, $B$ and $C$ are empirical constants, $R$ is the thermistor's resistance in $\Omega$ and $T_k$ is the temperature in kelvin.
+
+Consulting the [board's manual](https://www.infineon.com/assets/row/public/documents/30/44/infineon-cy8cproto-062-4343w-psoc-6-wi-fi-bt-prototyping-kit-guide-usermanual-en.pdf), we can see that the voltage divider uses a `10K` resistor, so $R_{ref} = 10000\Omega$.
+
+#### Current state
+
+The underlying ADC peripheral implementation has two channels configured (`AdcChannel0` and `AdcChannel1`) to sample on demand the two voltage drops on the resistor and thermistor. Also, the four pins mentioned in the schematic are properly setup by the board configuration, in the `TEMPERATURE` section.
+
+#### `TemperatureSensor` in Tock
+
+Tock already has an implementation for a `SyscallDriver` capsule for reading the temperature. It can be found in the  `capsules/extra/src/temperature.rs` module. It utilizes a trait for interacting with various temperature sensors called `TemperatureDriver`, that works in the same notification based paradigm as the `Alarm`, notifying the client when the temperature measurement is complete. Our goal will be to implement this trait for our new `Cy8cprotoThermistor` capsule.
+
+As before, the first step will be to define our new module, `cy8cproto_thermistor.rs` and define the structure of our capsule. The capsule will need references to both `AdcChannel`s, and will need to hold a client reference, to notify them.
+
+```rust title="capsules/extra/scr/cy8cproto_thermistor.rs"
+pub struct Cy8cprotoThermistor<'a, A: adc::AdcChannel<'a>> {
+    thermistor_adc: &'a A,
+    resistor_adc: &'a A,
+    client: OptionalCell<&'a dyn sensors::TemperatureClient>,
+}
+```
+
+We need to implement the `TemperatureDriver` trait for our thermistor capsule. The implementation for the `set_client` method is straight-forward, and the `read_temperature` would, in theory, need to start the sampling of both channels.
+
+```rust title="capsules/extra/scr/cy8cproto_thermistor.rs"
+impl<'a, A: adc::AdcChannel<'a>> TemperatureDriver<'a> for Cy8cprotoThermistor<'a, A> {
+    fn set_client(&self, client: &'a dyn sensors::TemperatureClient) {
+        self.client.set(client);
+    }
+
+    fn read_temperature(&self) -> Result<(), kernel::ErrorCode> {
+        self.thermistor_adc.sample();
+        self.resistor_adc.sample();
+        Ok(())
+    }
+}
+```
+
+:::warning Error handling
+This implementation disregards error handling for education purposes, both sample functions may fail, and need proper handling.
+:::
+
+This capsule will be a client to both the `AdcChannel`s, so the next logical step is to implement the `AdcClient` trait.
+
+```rust title="capsules/extra/scr/cy8cproto_thermistor.rs"
+impl<'a, A: adc::AdcChannel<'a>> adc::Client for Cy8cprotoThermistor<'a, A> {
+    fn sample_ready(&self, sample: u16) {
+        todo!()
+    }
+}
+```
+
+This is where we encounter our first issue. Both channels will use the same interface, and therefore the same method implementation when the sampling is done. This means that the capsule has no way of distinguishing between the samples.
+
+#### State machine design
+
+One viable alternative would be implementing a state machine for sampling both channels and computing the temperature.
+
+```mermaid
+---
+config:
+  theme: redux
+---
+flowchart TD
+    A(["Idle"]) -- read_temperature() --> B{"Sample Resistor"}
+    B -- Error --> D(["Report Error"])
+    B -- Await sample result --> C{"Sample Thermistor"}
+    C -- Error --> D
+    C -- Await sample result --> F(["Report Temperature"])
+    F --> A
+    D --> A
+```
+
+We need to define the internal state of the capsule, and to do that, we will use an `enum`. We will also need to store the result of the resistor sample in capsule.
+
+```rust title="capsules/extra/scr/cy8cproto_thermistor.rs"
+#[derive(Clone, Copy)]
+enum Status {
+    Idle,
+    AwaitingThermistorReading,
+    AwaitingResistorReading,
+}
+
+pub struct Cy8cprotoThermistor<'a, A: adc::AdcChannel<'a>> {
+    thermistor_adc: &'a A,
+    resistor_adc: &'a A,
+    resistor_sample: OptionalCell<u16>,
+    status: Cell<Status>,
+    client: OptionalCell<&'a dyn sensors::TemperatureClient>,
+}
+
+impl<'a, A: adc::AdcChannel<'a>> Cy8cprotoThermistor<'a, A> {
+    pub fn new(thermistor_adc: &'a A, resistor_adc: &'a A) -> Self {
+        Self {
+            thermistor_adc,
+            resistor_adc,
+            resistor_sample: OptionalCell::empty(),
+            status: Cell::new(Status::Idle),
+            client: OptionalCell::empty(),
+        }
+    }
+}
+```
+
+The `read_temperature` method will start the resistor measurement and will change the inner state.
+
+```rust title="capsules/extra/scr/cy8cproto_thermistor.rs"
+impl<'a, A: adc::AdcChannel<'a>> TemperatureDriver<'a> for Cy8cprotoThermistor<'a, A> {
+    fn set_client(&self, client: &'a dyn sensors::TemperatureClient) {
+        self.client.set(client);
+    }
+
+    fn read_temperature(&self) -> Result<(), kernel::ErrorCode> {
+        let res = self.thermistor_adc.sample();
+        if res.is_ok() {
+            self.status.set(Status::AwaitingThermistorReading);
+        }
+        res
+    }
+}
+```
+
+The implementation of the `AdcClient` sole method, `sample_ready` will have to take into account the current state. If the method is called after the first reading (`status` is `Status::AwaitingResistorReading`), the capsule must store the result and start the thermistor sampling. If the method is called after both readings are performed, then the capsule must perform the computations mentioned above, to report the measured temperature in hundredths of degrees Celsius (centiCelsius).
+
+:::note Error handling
+
+Handle all possible errors that the `sample` calls may yield by resetting both the thermistor state to `Status::Idle` and the `resistor_sample`, and reporting the error to the client.
+
+```rust title="Reporting the result of a temperature reading"
+self.client.map(|client| client.callback(temp_reading_result))
+```
+
+In our case, the `temp_reading_result` will be the sample error.
+:::
+
+#### Computing the temperature
+
+Based on the [Infineon documentation](https://www.infineon.com/assets/row/public/documents/30/42/infineon-an2017-psoc-1-temperature-measurement-with-thermistor-applicationnotes-en.pdf?fileId=8ac78c8c7cdc391c017d072814bc4c7b), the empirical constants' values for the thermistor used by our board are:
+
+```rust
+/// Reference Resistor value in Ohms
+const R_REF: f64 = 10_000.0;
+
+const A: f64 = 0.000891358;
+const B: f64 = 0.000250618;
+const C: f64 = 0.000000197;
+```
+
+To convert from the numerical values to voltages, we need to understand how ADCs work. Every ADC will have a resolution, which is the number of bits which can be used to store the sample result, and a sampling range which is the minimum-to-maximum input voltage it can measure. Our ADC has a resolution of 11 bits (based on the current configuration of the peripheral) and a input range of 0-3.3 Volts, meaning that the result can rage from `0`, which represents the 0V potential to `2047` ($2^{11} - 1$) which will represent 3V3.
+
+Based on this, we can define a function that takes the discrete value of the sample and returns the voltage.
+
+```rust
+fn convert(sample: u16) -> f64 {
+    ((sample as f64) * 3.3) / 2047.0
+}
+```
+
+Our implementation of the `sample_ready` function should now be complete
+
+```rust title="capsules/extra/scr/cy8cproto_thermistor.rs"
+impl<'a, A: adc::AdcChannel<'a>> adc::Client for Cy8cprotoThermistor<'a, A> {
+    fn sample_ready(&self, sample: u16) {
+        match self.status.get() {
+            Status::Idle => (),
+            Status::AwaitingResistorReading => {
+                // ... Store the sample
+            }
+            Status::AwaitingThermistorReading => {
+                let sample_0 = self.resistor_sample.take().unwrap();
+                let sample_1 = sample;
+
+                let v1_0 = convert(sample_0);
+                let v2_1 = convert(sample_1);
+
+                let r_therm = R_REF * (v2_1 / v1_0);
+
+                let logarithm = libm::log(r_therm);
+                let logarithm3 = logarithm * logarithm * logarithm;
+
+                let temp_k = 1.0f64 / (A + B * logarithm + C * logarithm3);
+
+                let temp_celsius = temp_k - 273.15;
+
+                self.status.set(Status::Idle);
+                self.client
+                    .map(|client| client.callback(Ok((temp_celsius * 100.0) as i32)));
+            }
+        }
+    }
+}
+```
+
+#### Defining the component
+
+As before, we need to ensure the capsule can be easily configured by implementing a new `Component`. You can name the module `cyc8cproto_thermistor.rs`.
+
+We should start from the bottom up, considering what should be needed to instantiate this capsule. These are the `AdcChannel`s and an `MuxAdc`, to be able to multiplex an ADC peripheral to sample multiple channels.
+
+```rust title="boards/components/src/cyc8proto_thermistor.rs"
+// This will be the output type of the component
+pub type Cy8cprotoThermistorComponentType<A> =
+    capsules_extra::cy8cproto_thermistor::Cy8cprotoThermistor<'static, A>;
+
+pub struct Cy8cprotoThermistorComponent<A: 'static + adc::Adc<'static>> {
+    adc_mux: &'static capsules_core::virtualizers::virtual_adc::MuxAdc<'static, A>,
+    thermistor_channel: A::Channel,
+    resistor_channel: A::Channel,
+}
+
+impl<A: 'static + adc::Adc<'static>> Cy8cprotoThermistorComponent<A> {
+    pub fn new(
+        adc_mux: &'static capsules_core::virtualizers::virtual_adc::MuxAdc<'static, A>,
+        thermistor_channel: A::Channel,
+        resistor_channel: A::Channel,
+    ) -> Self {
+        Self {
+            adc_mux,
+            thermistor_channel,
+            resistor_channel,
+        }
+    }
+}
+```
+
+The `finalize` implementation of the `Component` trait will need to create the two virtual `AdcDevices` that multiplex the peripheral, and therefore, the static memory needed must accommodate the two devices, and the thermistor capsule.
+
+```rust title="boards/components/src/cyc8proto_thermistor.rs"
+impl<A: 'static + adc::Adc<'static>> Component for Cy8cprotoThermistorComponent<A> {
+    type StaticInput = (
+        &'static mut MaybeUninit<AdcDevice<'static, A>>,
+        &'static mut MaybeUninit<AdcDevice<'static, A>>,
+        &'static mut MaybeUninit<Cy8cprotoThermistorComponentType<AdcDevice<'static, A>>>,
+    );
+
+    type Output = &'static Cy8cprotoThermistorComponentType<AdcDevice<'static, A>>;
+
+    fn finalize(self, static_memory: Self::StaticInput) -> Self::Output {
+        let thermistor_device =
+            crate::adc::AdcComponent::new(self.adc_mux, self.thermistor_channel)
+                .finalize(static_memory.0);
+
+        let resistor_device = crate::adc::AdcComponent::new(self.adc_mux, self.resistor_channel)
+            .finalize(static_memory.1);
+
+        let cy8cproto_thermistor = static_memory.2.write(Cy8cprotoThermistorComponentType::new(
+            thermistor_device,
+            resistor_device,
+        ));
+
+        thermistor_device.set_client(cy8cproto_thermistor);
+        resistor_device.set_client(cy8cproto_thermistor);
+        cy8cproto_thermistor
+    }
+}
+```
+
+The macro should look like this:
+
+```rust title="boards/components/src/cyc8proto_thermistor.rs"
+#[macro_export]
+macro_rules! cy8cproto_thermistor_component_static {
+    ($A:ty $(,)?) => {{
+        let thermistor_device = components::adc_component_static!($A);
+        let resistor_device = components::adc_component_static!($A);
+        let cy8cproto_thermistor = kernel::static_buf!(
+            capsules_extra::cy8cproto_thermistor::Cy8cprotoThermistor<
+                'static,
+                capsules_core::virtualizers::virtual_adc::AdcDevice<'static, $A>,
+            >
+        );
+
+        (thermistor_device, resistor_device, cy8cproto_thermistor)
+    };};
+}
+```
+
+#### Adding the capsule to the board
+
+The final step is to add the newly defined capsule to the board's configuration. To do that, we must add the capsule
+to the `Cy8cproto0624343w` structure, and to the `SyscallDriverLookup` implementation, and configure it in the `main` function.
+
+```rust title="boards/cy8cproto_62_4343_w/src/main.rs"
+/// Supported drivers by the platform
+pub struct Cy8cproto0624343w {
+    // ...
+    systick: cortexm0p::systick::SysTick,
+    // highlight-start
+    temp: &'static capsules_extra::temperature::TemperatureSensor<
+        'static,
+        capsules_extra::cy8cproto_thermistor::Cy8cprotoThermistor<
+            'static,
+            capsules_core::virtualizers::virtual_adc::AdcDevice<'static, Adc<'static>>,
+        >,
+    >,
+    // highlight-end
+}
+
+impl SyscallDriverLookup for Cy8cproto0624343w {
+    fn with_driver<F, R>(&self, driver_num: usize, f: F) -> R
+    where
+        F: FnOnce(Option<&dyn kernel::syscall::SyscallDriver>) -> R,
+    {
+        match driver_num {
+            // ...
+            capsules_core::gpio::DRIVER_NUM => f(Some(self.gpio)),
+            // highlight-next-line
+            capsules_extra::temperature::DRIVER_NUM => f(Some(self.temp)),
+            _ => f(None),
+        }
+    }
+}
+
+// ...
+
+pub unsafe fn main() {
+    // ...
+
+    //--------------------------------------------------------------------------
+    // TEMPERATURE
+    //--------------------------------------------------------------------------
+
+    // ... Pin configurations
+
+    let mux_adc = components::adc::AdcMuxComponent::new(&peripherals.adc)
+        .finalize(components::adc_mux_component_static!(sar::Adc));
+
+    // highlight-start
+    let thermistor = components::cy8cproto_thermistor::Cy8cprotoThermistorComponent::new(
+        mux_adc,
+        sar::AdcChannel::Channel0,
+        sar::AdcChannel::Channel1,
+    )
+    .finalize(cy8cproto_thermistor_component_static!(psoc62xa::sar::Adc));
+
+    let temp = components::temperature::TemperatureComponent::new(
+        board_kernel,
+        capsules_extra::temperature::DRIVER_NUM,
+        thermistor,
+    )
+    .finalize(components::temperature_component_static!(
+        capsules_extra::cy8cproto_thermistor::Cy8cprotoThermistor<
+            'static,
+            capsules_core::virtualizers::virtual_adc::AdcDevice<'static, Adc<'static>>,
+        >
+    ));
+    // highlight-end
+    
+    // ...
+}
+```
+
+#### Sensors application
+
+Fortunately, `libtock-c` already has a modular example that reads multiple sensors. This example can be found in the `examples/sensors` subdirectory. To enable the temperature readings, we must set the `temperature` variable.
+
+```c title="examples/sensors/main.c"
+// ...
+#include <libtock/tock.h>
+
+static libtock_alarm_t alarm;
+static bool light          = false;
+// highlight-next-line
+static bool temperature    = true;
+static bool humidity       = false;
+static bool ninedof        = false;
+static bool ninedof_accel  = false;
+static bool ninedof_mag    = false;
+static bool ninedof_gyro   = false;
+static bool proximity      = false;
+static bool sound_pressure = false;
+static bool moisture       = false;
+static bool rainfall       = false;
+```
+
+Then, compile the application, and flash it along the kernel. Do not forget to update the `APP` variable in the board's `Makefile`.
