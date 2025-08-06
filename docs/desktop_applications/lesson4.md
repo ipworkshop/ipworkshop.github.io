@@ -415,4 +415,4 @@ export component AboutWindow inherits Window {
 
 ---
 
-**End of Module 4.** You've successfully entered the world of GUI development with Slint\! You can now set up a project, define UI elements, arrange them with layouts, and create static desktop applications. Next, we'll make them interactive\!
+**End of Lesson 4.** You've successfully entered the world of GUI development with Slint\! You can now set up a project, define UI elements, arrange them with layouts, and create static desktop applications. Next, we'll make them interactive\!

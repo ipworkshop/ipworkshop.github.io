@@ -324,4 +324,4 @@ This project will challenge you to think about UI state, how to update it from R
 
 ---
 
-**End of Module 5.** You've now unlocked the power of interactive UIs with Slint\! You can manage state, bind data, and handle user events, culminating in a functional calculator application. Next up, we'll make your apps communicate with the outside world using HTTP APIs\!
+**End of Lesson 5.** You've now unlocked the power of interactive UIs with Slint\! You can manage state, bind data, and handle user events, culminating in a functional calculator application. Next up, we'll make your apps communicate with the outside world using HTTP APIs\!
