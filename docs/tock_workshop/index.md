@@ -111,10 +111,10 @@ The configuration for the various boards supported can be found in the `boards` 
 
 ```shell
 cd boards/cy8cproto_62_4343_w
-cargo flash
+make flash
 ```
 
-Alternatively, you can use the `make flash` while inside the board's directory.
+Alternatively, you can use the `cargo flash` while inside the board's directory.
 
 If you did everything correctly, you should be able to use the `tockloader listen` command to interact with the kernel. When prompted to select a serial port, pick the one that ends with `KitProg3 CMSIS-DAP`.
 
@@ -185,9 +185,9 @@ use kernel::{
     ErrorCode,
 };
 
-const DRIVER_NUM: usize = 0x9000A;
+pub const DRIVER_NUM: usize = 0x9000A;
 
-struct MockCapsule;
+pub struct MockCapsule;
 
 impl SyscallDriver for MockCapsule {
     fn command(
@@ -438,6 +438,10 @@ impl<A: 'static + Alarm<'static>> Component for MockCapsuleComponent<A> {
     }
 }
 ```
+
+:::note Module definition
+Do not forget to add `pub mod mock;` in `boards/components/src/lib.rs`.
+:::
 
 The allocation of the memory segments is usually done through a marco. It is out of this workshop's scope to dive into writing macros, but the macro bellow takes a `type` that must implement the `hil::time::Alarm` trait and returns a tuple of static mutable references to `MaybeUninit` wrappers of the `VirtualMuxAlarm` nad the `MockCapsule`.
 
@@ -726,7 +730,7 @@ impl<'a, A: adc::AdcChannel<'a>> adc::Client for Cy8cprotoThermistor<'a, A> {
 
 #### Defining the component
 
-As before, we need to ensure the capsule can be easily configured by implementing a new `Component`. You can name the module `cyc8cproto_thermistor.rs`.
+As before, we need to ensure the capsule can be easily configured by implementing a new `Component`. You can name the module `cy8cproto_thermistor.rs`.
 
 We should start from the bottom up, considering what should be needed to instantiate this capsule. These are the `AdcChannel`s and an `MuxAdc`, to be able to multiplex an ADC peripheral to sample multiple channels.
 
@@ -758,7 +762,7 @@ impl<A: 'static + adc::Adc<'static>> Cy8cprotoThermistorComponent<A> {
 
 The `finalize` implementation of the `Component` trait will need to create the two virtual `AdcDevices` that multiplex the peripheral, and therefore, the static memory needed must accommodate the two devices, and the thermistor capsule.
 
-```rust title="boards/components/src/cyc8proto_thermistor.rs"
+```rust title="boards/components/src/cy8cproto_thermistor.rs"
 impl<A: 'static + adc::Adc<'static>> Component for Cy8cprotoThermistorComponent<A> {
     type StaticInput = (
         &'static mut MaybeUninit<AdcDevice<'static, A>>,
@@ -790,7 +794,7 @@ impl<A: 'static + adc::Adc<'static>> Component for Cy8cprotoThermistorComponent<
 
 The macro should look like this:
 
-```rust title="boards/components/src/cyc8proto_thermistor.rs"
+```rust title="boards/components/src/cy8cproto_thermistor.rs"
 #[macro_export]
 macro_rules! cy8cproto_thermistor_component_static {
     ($A:ty $(,)?) => {{
