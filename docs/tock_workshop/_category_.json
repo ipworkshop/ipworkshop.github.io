@@ -1,0 +1,9 @@
+{
+  "position": 7,
+  "label": "Tock Workshop",
+  "collapsible": true,
+  "collapsed": true,
+  "customProps": {
+    "description": "TockWorld Europ's Workshop, learn how to use Tock and write drivers." 
+  }
+}
