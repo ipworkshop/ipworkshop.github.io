@@ -100,7 +100,14 @@ The command, subscribe, and allow system calls all take a driver ID as their fir
 
 ### Flashing the kernel
 
-Initially, you will need to clone the Tock [repository](https://example.com). The configuration for the various boards supported can be found in the `boards` directory. To compile the kernel, you can use the `cargo flash` utility.
+Initially, you will need to clone the `Tock` repository:
+
+```shell
+git clone https://github.com/OxidosAutomotive/tock.git --branch=psoc6-workshop
+cd tock
+```
+
+The configuration for the various boards supported can be found in the `boards` directory. To compile the kernel, you can use the `cargo flash` utility.
 
 ```shell
 cd boards/cy8cproto_62_4343_w
@@ -129,7 +136,14 @@ $tock
 
 ### Compiling an application
 
-For this task, you will have to clone the [`libtock-c`](https://example.com) repository first. Navigate to the `examples/blink` folder and take a look at the C application structure found in `main.c`. To compile the application, simply run `make`. This command will built the example applications for all target architectures supported by the library. Apps are compiled into TBFs (Tock Binary Format), and can be found in the `build/<arch>` sub-directories. Tock also generates an archive of the same app, compiled for multiple architectures, for ease of use and portability, called a TAB(Tock Application Bundle) which can be loaded using the `tockloader` utility.
+For this task, you will have to clone the `libtock-c` repository:
+
+```shell
+git clone https://github.com/ipworkshop/libtock-c.git --branch=remove-risc
+cd libtock-c
+```
+
+Navigate to the `examples/blink` folder and take a look at the C application structure found in `main.c`. To compile the application, simply run `make`. This command will built the example applications for all target architectures supported by the library. Apps are compiled into TBFs (Tock Binary Format), and can be found in the `build/<arch>` sub-directories. Tock also generates an archive of the same app, compiled for multiple architectures, for ease of use and portability, called a TAB(Tock Application Bundle) which can be loaded using the `tockloader` utility.
 
 ### Flashing the application
 
