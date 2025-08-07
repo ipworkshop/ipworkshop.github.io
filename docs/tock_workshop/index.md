@@ -64,9 +64,27 @@ pipx install tockloader
 pipx ensurepath
 ```
 
-## CY8CPROTO-062-4343W board
+## [CY8CPROTO-062-4343W board](https://www.infineon.com/evaluation-board/CY8CPROTO-062-4343W)
+- [Registers Technical Reference Manual](https://www.infineon.com/assets/row/public/documents/30/57/infineon-psoc-6-mcu-psoc-62-register-technical-reference-manual-additionaltechnicalinformation-en.pdf)
+ 
+- [PSoC 6 Wi-Fi BT Prototyping Kit Guide](https://www.infineon.com/assets/row/public/documents/30/44/infineon-cy8cproto-062-4343w-psoc-6-wi-fi-bt-prototyping-kit-guide-usermanual-en.pdf)
 
-TODO: add board description and features
+### Microcontroller
+
+- PSoC 6 Dual-Core MCU
+- ARM Cortex-M4 (150 MHz) + ARM Cortex-M0+ (100 MHz)
+- 1 MB Flash, 288 KB SRAM
+- Ultra-low power consumption
+
+### Wireless Connectivity
+
+- CYW4343W Module
+- Wi-Fi 802.11 b/g/n
+- Bluetooth 4.1 (Classic + BLE)
+- Integrated antenna
+
+Boards Provided by
+![Infineon](./assets/Logo_Infineon_RGB.svg)
 
 ## Tock
 
