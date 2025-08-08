@@ -143,11 +143,11 @@ Beyond the core collections, Rust's standard library offers several others for m
 
 - **`BTreeMap<K, V>`**: A map that stores key-value pairs in a sorted order, comparable to `std::map` in C++. It has a logarithmic $O(\\log n)$ time complexity for operations but guarantees a consistent, sorted iteration order.
 
-  - [Official `BTreeMap` Docs](<https://www.google.com/search?q=%5Bhttps://www.google.com/search%3Fq%3D%255Bhttps://www.google.com/search%253Fq%253D%25255Bhttps://doc.rust-lang.org/std/collections/struct.BTreeMap.html%25255D%255D%5D(https://www.google.com/search%3Fq%3D%255Bhttps://www.google.com/search%253Fq%253D%25255Bhttps://doc.rust-lang.org/std/collections/struct.BTreeMap.html%25255D%255D)(%5Bhttps://www.google.com/search%253Fq%253D%25255Bhttps://doc.rust-lang.org/std/collections/struct.BTreeMap.html%25255D%5D(https://www.google.com/search%253Fq%253D%25255Bhttps://doc.rust-lang.org/std/collections/struct.BTreeMap.html%25255D))(%255B%5Bhttps://doc.rust-lang.org/std/collections/struct.BTreeMap.html%255D%5D(https://doc.rust-lang.org/std/collections/struct.BTreeMap.html%255D)(%5Bhttps://doc.rust-lang.org/std/collections/struct.BTreeMap.html%5D(https://doc.rust-lang.org/std/collections/struct.BTreeMap.html)))>)
+  - [Official `BTreeMap` Docs](https://doc.rust-lang.org/std/collections/struct.BTreeMap.html)
 
 - **`BTreeSet<T>`**: A collection of unique, sorted values, similar to `std::set` in C++. It also provides logarithmic $O(\\log n)$ time complexity and guarantees sorted iteration.
 
-  - [Official `BTreeSet` Docs](https://doc.rust-lang.org/std/collections/struct.BTreeMap.html)
+  - [Official `BTreeSet` Docs](https://doc.rust-lang.org/std/collections/struct.BTreeSet.html)
 
 - **`VecDeque<T>`**: A double-ended queue, which is a growable array optimized for efficient pushes and pops from both the front and the back.
 
