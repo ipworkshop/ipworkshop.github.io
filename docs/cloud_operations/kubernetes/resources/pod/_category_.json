@@ -1,0 +1,11 @@
+{
+  "label": "Pods",
+  "position": 2,
+  "link": {
+    "type": "generated-index",
+    "title": "Pods"
+  },
+  "customProps": {
+    "unlisted": true
+  }
+}

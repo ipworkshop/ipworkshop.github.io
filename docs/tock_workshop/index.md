@@ -9,7 +9,6 @@ or you can use the NixOS VM we provide [here](https://drive.google.com/file/d/1-
 The username and password are both `ipwembedded`.
 If you will be using the NixOS VM, you can skip the prerequisites.
 :::
-
 ### Rust Toolchain
 
 You will need to install the Rust toolchain. To do so, you can follow the instructions on the [Getting started](https://www.rust-lang.org/learn/get-started) page of the Rust Language website.
@@ -66,9 +65,27 @@ pipx install tockloader
 pipx ensurepath
 ```
 
-## CY8CPROTO-062-4343W board
+## [CY8CPROTO-062-4343W board](https://www.infineon.com/evaluation-board/CY8CPROTO-062-4343W)
+- [Registers Technical Reference Manual](https://www.infineon.com/assets/row/public/documents/30/57/infineon-psoc-6-mcu-psoc-62-register-technical-reference-manual-additionaltechnicalinformation-en.pdf)
+ 
+- [PSoC 6 Wi-Fi BT Prototyping Kit Guide](https://www.infineon.com/assets/row/public/documents/30/44/infineon-cy8cproto-062-4343w-psoc-6-wi-fi-bt-prototyping-kit-guide-usermanual-en.pdf)
 
-TODO: add board description and features
+### Microcontroller
+
+- PSoC 6 Dual-Core MCU
+- ARM Cortex-M4 (150 MHz) + ARM Cortex-M0+ (100 MHz)
+- 1 MB Flash, 288 KB SRAM
+- Ultra-low power consumption
+
+### Wireless Connectivity
+
+- CYW4343W Module
+- Wi-Fi 802.11 b/g/n
+- Bluetooth 4.1 (Classic + BLE)
+- Integrated antenna
+
+Boards Provided by
+![Infineon](./assets/Logo_Infineon_RGB.svg)
 
 ## Tock
 
@@ -129,6 +146,13 @@ If you did everything correctly, you should be able to use the `tockloader liste
 Currently, `tockloader` doesn't work on NixOS, but we have included the program `picocom`
 which you can use with the following command: `picocom -b 115200 /dev/ttyACM0`. (use `sudo` if it gives an error about permissions)
 :::
+
+cargo flash
+```
+
+Alternatively, you can use the `make flash` while inside the board's directory.
+
+If you did everything correctly, you should be able to use the `tockloader listen` command to interact with the kernel. When prompted to select a serial port, pick the one that ends with `KitProg3 CMSIS-DAP`.
 
 ```shell
 tockloader listen
@@ -749,7 +773,6 @@ impl<'a, A: adc::AdcChannel<'a>> adc::Client for Cy8cprotoThermistor<'a, A> {
 #### Defining the component
 
 As before, we need to ensure the capsule can be easily configured by implementing a new `Component`. You can name the module `cy8cproto_thermistor.rs`.
-
 We should start from the bottom up, considering what should be needed to instantiate this capsule. These are the `AdcChannel`s and an `MuxAdc`, to be able to multiplex an ADC peripheral to sample multiple channels.
 
 ```rust title="boards/components/src/cyc8proto_thermistor.rs"
