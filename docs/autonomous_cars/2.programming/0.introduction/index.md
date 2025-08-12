@@ -53,13 +53,13 @@ In this step, you may be prompted to install additional drivers during the insta
 </div>
 
 <div align="center">
-![alt text](../assets/image-38.png)
+![alt text](../assets/image-7.png)
 </div>
 
 Now launch the MCUXpresso IDE and install the SDK. On the IDE Welcome page, click “Download and Install SDKs”.
 
 <div align="center">
-![alt text](../assets/image-37.png)
+![alt text](../assets/image-9.png)
 </div>
 
 Search for “mcxn947” and click “install”. 
