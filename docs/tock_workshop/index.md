@@ -2,15 +2,16 @@
 
 ## Prerequisites
 
+:::note Windows Users or participants that are willing to use a VM
+This workshop will not work on Windows systems.
+You can try following the guide using a Linux VM/WSL2,
+or you can use the NixOS VM we provide [here](https://drive.google.com/file/d/1-jOsuWdSnOlmyupMWb3Vw4oG_t77BnwQ/view?usp=sharing) (only works on VirtualBox).
+The username and password are both `ipwembedded`.
+If you will be using the NixOS VM, you can skip the prerequisites.
+:::
 ### Rust Toolchain
 
 You will need to install the Rust toolchain. To do so, you can follow the instructions on the [Getting started](https://www.rust-lang.org/learn/get-started) page of the Rust Language website.
-
-:::info Windows Install Tips
-If you are using Windows, you may be prompted to install [Visual Studio C++ Build tools](https://visualstudio.microsoft.com/visual-cpp-build-tools/). If so, follow the instructions from the previous link.
-
-Even if Visual Studio is already on your machine, rustup will not verify if the required components are present. If you experience issues with the `rustup` installation on Windows, please follow [these instructions](https://rust-lang.github.io/rustup/installation/windows-msvc.html) to manually add the missing components.
-:::
 
 To verify that the installation, open a terminal and run `rustup --version`. If everything went well, you should see an output similar to this:
 
@@ -32,7 +33,7 @@ The simplest installation method involves using the `cargo` packet manager, but 
 sudo apt install -y pkg-config libudev-dev cmake git
 ```
 
-* On Mac OS and Windows, no additional setup is needed.
+* On Mac OS, no additional setup is needed.
 
 After that, use `cargo` to install `probe-rs`:
 
@@ -125,10 +126,27 @@ git clone https://github.com/OxidosAutomotive/tock.git --branch=psoc6-workshop
 cd tock
 ```
 
+:::note NixOS VM users
+You don't have to clone the Tock OS repository, it is already cloned in the home directory.
+You will have to run `nix-shell` once you enter the `tock` directory.
+:::
+
 The configuration for the various boards supported can be found in the `boards` directory. To compile the kernel, you can use the `cargo flash` utility.
 
 ```shell
 cd boards/cy8cproto_62_4343_w
+make flash
+```
+
+Alternatively, you can use the `cargo flash` while inside the board's directory.
+
+If you did everything correctly, you should be able to use the `tockloader listen` command to interact with the kernel. When prompted to select a serial port, pick the one that ends with `KitProg3 CMSIS-DAP`.
+
+:::note NixOS VM users
+Currently, `tockloader` doesn't work on NixOS, but we have included the program `picocom`
+which you can use with the following command: `picocom -b 115200 /dev/ttyACM0`. (use `sudo` if it gives an error about permissions)
+:::
+
 cargo flash
 ```
 
@@ -149,7 +167,7 @@ Which option? [0] 1
 [INFO   ] Using "/dev/cu.usbmodem1103 - KitProg3 CMSIS-DAP".
 [INFO   ] Listening for serial output
 
-$tock
+tock$
 ```
 
 ### Compiling an application
@@ -160,6 +178,12 @@ For this task, you will have to clone the `libtock-c` repository:
 git clone https://github.com/ipworkshop/libtock-c.git --branch=remove-risc
 cd libtock-c
 ```
+
+:::note NixOS VM users
+You don't have to clone the libtock-c repository, it is already cloned in the home directory.
+You will have to run `nix-shell` once you enter the `libtock-c` directory.
+Make sure you don't run that command if you already ran `nix-shell` inside another directory (either run `exit` before, or use another shell).
+:::
 
 Navigate to the `examples/blink` folder and take a look at the C application structure found in `main.c`. To compile the application, simply run `make`. This command will built the example applications for all target architectures supported by the library. Apps are compiled into TBFs (Tock Binary Format), and can be found in the `build/<arch>` sub-directories. Tock also generates an archive of the same app, compiled for multiple architectures, for ease of use and portability, called a TAB(Tock Application Bundle) which can be loaded using the `tockloader` utility.
 
@@ -186,7 +210,7 @@ Which option? [0] 1
 [INFO   ] Using "/dev/cu.usbmodem1103 - KitProg3 CMSIS-DAP".
 [INFO   ] Listening for serial output
 
-$tock list
+tock$ list
  PID    ShortID    Name                Quanta  Syscalls  Restarts  Grants  State
  0      Unique     blink                    0        84         0   1/ 8   Yielded
 ```
@@ -203,9 +227,9 @@ use kernel::{
     ErrorCode,
 };
 
-const DRIVER_NUM: usize = 0x9000A;
+pub const DRIVER_NUM: usize = 0x9000A;
 
-struct MockCapsule;
+pub struct MockCapsule;
 
 impl SyscallDriver for MockCapsule {
     fn command(
@@ -456,6 +480,10 @@ impl<A: 'static + Alarm<'static>> Component for MockCapsuleComponent<A> {
     }
 }
 ```
+
+:::note Module definition
+Do not forget to add `pub mod mock;` in `boards/components/src/lib.rs`.
+:::
 
 The allocation of the memory segments is usually done through a marco. It is out of this workshop's scope to dive into writing macros, but the macro bellow takes a `type` that must implement the `hil::time::Alarm` trait and returns a tuple of static mutable references to `MaybeUninit` wrappers of the `VirtualMuxAlarm` nad the `MockCapsule`.
 
@@ -744,8 +772,7 @@ impl<'a, A: adc::AdcChannel<'a>> adc::Client for Cy8cprotoThermistor<'a, A> {
 
 #### Defining the component
 
-As before, we need to ensure the capsule can be easily configured by implementing a new `Component`. You can name the module `cyc8cproto_thermistor.rs`.
-
+As before, we need to ensure the capsule can be easily configured by implementing a new `Component`. You can name the module `cy8cproto_thermistor.rs`.
 We should start from the bottom up, considering what should be needed to instantiate this capsule. These are the `AdcChannel`s and an `MuxAdc`, to be able to multiplex an ADC peripheral to sample multiple channels.
 
 ```rust title="boards/components/src/cyc8proto_thermistor.rs"
@@ -776,7 +803,7 @@ impl<A: 'static + adc::Adc<'static>> Cy8cprotoThermistorComponent<A> {
 
 The `finalize` implementation of the `Component` trait will need to create the two virtual `AdcDevices` that multiplex the peripheral, and therefore, the static memory needed must accommodate the two devices, and the thermistor capsule.
 
-```rust title="boards/components/src/cyc8proto_thermistor.rs"
+```rust title="boards/components/src/cy8cproto_thermistor.rs"
 impl<A: 'static + adc::Adc<'static>> Component for Cy8cprotoThermistorComponent<A> {
     type StaticInput = (
         &'static mut MaybeUninit<AdcDevice<'static, A>>,
@@ -808,7 +835,7 @@ impl<A: 'static + adc::Adc<'static>> Component for Cy8cprotoThermistorComponent<
 
 The macro should look like this:
 
-```rust title="boards/components/src/cyc8proto_thermistor.rs"
+```rust title="boards/components/src/cy8cproto_thermistor.rs"
 #[macro_export]
 macro_rules! cy8cproto_thermistor_component_static {
     ($A:ty $(,)?) => {{
