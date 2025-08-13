@@ -59,7 +59,9 @@ Simplest method to do this is to add a `counter` field in the capsule's structur
 
 ### The Tock way
 
-One issue with the previous approach is that the counter would be shared between the applications. This could be an issue for mutually distrustful application. Fortunately, Tock has a mechanism in place for such situations, called `Grant`s, which are per-process memory regions allocated in the kernel for a capsule to store that process’s state.
+One issue with the previous approach is that the counter would be shared between the applications. This could be an issue for mutually distrustful application. Fortunately, Tock has a mechanism in place for such situations, called `Grant`s, which are per-process memory regions allocated by the kernel in a process memory region for a capsule to store that process’s state.
+
+![Grant](assets/grant.png)
 
 To access this region, you can simply add a new `grant` field in the capsule structure.
 
@@ -72,9 +74,9 @@ struct App;
 struct PrintCounter {
     grant: Grant<
         App,
-        UpcallCount<0>,
-        AllowRoCount<0>,
-        AllowRwCount<0>
+        UpcallCount<0>,     // Number of upcalls supported by the capsule
+        AllowRoCount<0>,    // Number of Read-Only buffers supported
+        AllowRwCount<0>,    // Number of Read-Write buffers supported
     >,
 }
 ```
