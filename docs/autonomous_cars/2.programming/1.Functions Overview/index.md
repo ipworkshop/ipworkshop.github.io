@@ -6,9 +6,9 @@ In this section, we will explore the main functions used in the car application.
 
 ### Download the Project Archive
 
-To begin working on the actual application, download the provided project archive. This archive contains.... TODO
+To begin working on the actual application, download the provided project archive. This archive contains the source code.
 
-Download the project archive from: [insert link] TODO
+Download the project archive from [here](https://github.com/ipworkshop/autonomous-cars.git)
 
 ### Import the archive into the MCUXpresso IDE
 
