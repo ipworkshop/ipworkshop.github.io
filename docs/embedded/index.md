@@ -47,7 +47,7 @@ Initialization complete. Entering main loop
 tock$
 ```
 
-Personalize your kernel, by changing the hostname and the banner.
+Personalize your kernel, by changing the hostname and the welcome message.
 
 ## Print Counter Capsule
 
