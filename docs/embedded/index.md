@@ -6,7 +6,21 @@ If you did not attend the **Tock Workshop**, please follow the [Setup Tutorial](
 
 ## Getting Started
 
-For this track we will be using the **Nucleo-F429ZI** boards. The board's main can be found in the `boards/nucleo_f429zi` subfolder. Try to flash the kernel to the board, using the board's `Makefile`. After you are done flashing, connect to the board using `tockloader listen`
+For this track we will be using the **Nucleo-F429ZI** boards. You will need to **change the branch** you are working on, but first make sure you commit your changes.
+
+```shell
+git add .
+git commit -m "tock workshop progress"
+```
+
+Then, to fetch the branch and work on it, run:
+
+```shell
+git fetch
+git checkout track/embedded
+```
+
+The board's main can be found in the `boards/nucleo_f429zi` subfolder. Try to flash the kernel to the board, using the board's `Makefile`. After you are done flashing, connect to the board using `tockloader listen`
 
 ```shell
 [INFO   ] No device name specified. Using default name "tock".
