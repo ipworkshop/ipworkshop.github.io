@@ -2,6 +2,13 @@
 
 ## Prerequisites
 
+:::note Ubuntu Virtual Machine
+This workshop will not work on Windows systems.
+You can use the Ubuntu VM we provide [here](https://drive.google.com/file/d/1WSUo29d9Z8bmcjurvkDUmoAgq1TqaW4H/view?usp=sharing) (only works on VirtualBox).
+The username and password are both `ipwembedded`.
+The VM has the port 3033 forwarded for SSH connection.
+:::
+
 If you did not attend the **Tock Workshop**, please follow the [Setup Tutorial](../tock_workshop/index.md).
 
 ## Getting Started
