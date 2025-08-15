@@ -169,6 +169,35 @@ This task aims to illustrate the importance of OS preemption in the context of u
 
 ### Trust but verify
 
+:::warning app flashing
+<!-- If you are on Windows/VM, using `tockloader install` (which the `Makefile` command uses) may not work, so you will need to bundle the application in a single binary, which you will need to load in the *"old-fashioned"* way, by modifying the `APP` variable in `boards/nucleo_f429zi/Makefile` to point to the bundle TBF.
+
+To create the bundle, you will need to concatenate the two `.tbf`s using `cat`:
+
+```shell
+cat app1.tbf app2.tbf > bundle.tbf
+```
+
+Then, modify the `Makefile`:
+
+```makefile title="boards/nucleo_f429zi/Makefile"
+APP=<path/to/bundle.tbf>
+```
+
+Lastly, flash it by running `make program`. -->
+
+You will need to install `openocd` first.
+
+```shell
+# Linux
+sudo apt install openocd
+
+# Mac
+brew install openocd
+```
+
+:::
+
 Your task will be to verify the previous claims, by flashing two C applications. One of them will be the `blink` example. After flashing the kernel by running `make flash` in the board's main directory (`boards/nucleo_f429zi`), you can load the application by running `make flash` in the example's root folder (`example/blink`).
 
 As there are no *"malicious"* examples, we will have to add them on our own. In this case, an app that would print a message, then just infinitely spin in a `while` loop is enough. For this, you can adapt the `examples/c_hello` example, the flash it.
