@@ -170,3 +170,43 @@ fn allocate_grant(&self, process_id: kernel::ProcessId) -> Result<(), kernel::pr
 For the command logic, you must also use the `enter` API. The first parameter of the closure will be a mutable reference to a `GrantData` wrapper over the previously defined `App`. The wrapper is transparent, meaning it permits accessing fields of the generic type.
 
 The next step is configuring the capsule in the board's main file. Remember you need to add the capsule in the `NucleoF429ZI` structure, the `SyscallDriverLookup` and initialize the printer counter capsule.
+
+## The role of a Scheduler
+
+This task aims to illustrate the importance of OS preemption in the context of untrusted applications. Currently the scheduler used by the board is `kernel::scheduler::RoundRobinSched`, which implements a classical scheduling algorithm, allowing each process to run up to a maximum time slice called **quanta**. In the event that an application tries starving all other processes, the kernel will interrupt the malicious application after its quanta expires and will then schedule another process.
+
+### Trust but verify
+
+Your task will be to verify the previous claims, by flashing two C applications. One of them will be the `blink` example. After flashing the kernel by running `make flash` in the board's main directory (`boards/nucleo_f429zi`), you can load the application by running `make flash` in the example's root folder (`example/blink`).
+
+As there are no *"malicious"* examples, we will have to add them on our own. In this case, an app that would print a message, then just infinitely spin in a `while` loop is enough. For this, you can adapt the `examples/c_hello` example, the flash it.
+
+If you managed to flash both applications, you should be able to connect to the board using `tockloader listen` and see a similar output when running `list`:
+
+```shell
+tockloader listen
+[INFO   ] No device name specified. Using default name "tock".
+[INFO   ] No serial port with device name "tock" found.
+[INFO   ] Found 2 serial ports.
+Multiple serial port options found. Which would you like to use?
+[0]     /dev/cu.debug-console - n/a
+[1]     /dev/cu.usbmodem1103 - STM32 STLink
+
+Which option? [0] 1
+[INFO   ] Using "/dev/cu.usbmodem1103 - STM32 STLink".
+[INFO   ] Listening for serial output.
+
+tock$ list
+ PID    ShortID    Name                Quanta  Syscalls  Restarts  Grants  State
+ 0      Unique     blink                    0       289         0   1/11   Yielded
+ 1      Unique     ws-demo                640         6         0   1/11   Running
+tock$
+```
+
+You should be able to see the on-board LEDs flashing on the board.
+
+### Cooperation flaw
+
+Now, let's test the same scenario, but with a cooperative scheduling mechanism. You have to first change the kernel's scheduler in the board's `main.rs` file to use the `scheduler::cooperative::CooperativeSched`. Then you must re-flash the kernel by running `make flash`. Fortunately flashing the kernel should preserve the applications, so you will not have to re-flash them as well.
+
+After you are done flashing, check that both applications are present. You can try to reset the board a few times by running `reset` in tock's process console (the terminal you open by running `tockloader listen`).
