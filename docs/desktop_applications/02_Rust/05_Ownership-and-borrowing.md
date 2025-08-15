@@ -261,6 +261,3 @@ fn main() {
 - They **borrow part of the array** without copying it.
 
 ---
-
-### Exercises
-// to be added later
