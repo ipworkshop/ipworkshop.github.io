@@ -476,3 +476,87 @@ async fn main(spawner: Spawner) {
 To periodically blink and LED, you will need to be able to introduce a delay. You can do so manually, by introducing a `for` loop with a number of steps that takes into account the frequency of the processor. The issue with this method is that it would do a *"busy loop"* where the processor spends both time and energy doing unproductive instructions.
 
 This approach does not benefit from the underlying `async` that could schedule another task with available work to be executed. If you want to introduce delays the *`embassy`* way, you can do it using the `Timer` interface, specifically the `Timer::after()` function which takes a `Duration`, or the more direct `after_milis`, `after_secs`, etc.
+
+Tasks can be reused, in the sense that a task can be spawned multiple times with multiple parameters, the only thing needed is to specify the pool size (i.e number of concurrent tasks that can be spawned) in the `task` macro.
+
+```rust
+#[embassy_executor::task(pool_size = 4)]
+async fn led_task(mut led: Output<'static>) {
+    todo!()
+}
+```
+
+### Disco lights
+
+Your task is to make the three LEDs blink at different intervals (for example `100ms`, `200ms`, `300ms`) using a single `async` task that you spawn multiple times.
+
+:::note `main` task
+If you simply return in the `main` task, the program would stop. To fix this, you can add an infinite `loop` in which you either await a `Timer` future, or use the `yield_now().await`
+:::
+
+### `async` Channels
+
+Up to this point, we did not encounter the problem of communication between tasks. Any peripherals we used across tasks, we passed as parameter. But there are other, more convenient ways to send data to and from tasks. Instead of having to make global, static variables that are shared by tasks, we could choose to only send the information that we need from one task to another. To achieve this, we can use **channels**.
+
+**Channels** allow a unidirectional flow of information between two endpoints: the *Sender* and the *Receiver*. The sender sends a value through the channel, and the receiver receives this value once it is ready to do so. Until it is ready, the data will be stored inside a queue. Channels in Embassy are *Multiple Producer, Multiple Consumer*, which means that we can have a channel associated with multiple senders and multiple receivers.
+
+To use a channel in Embassy, we first need to declare a static instance of the channel outside of the `main` function.
+
+```rust
+static CHANNEL: Channel<ThreadModeRawMutex, bool, 64> = Channel::new();
+```
+
+- `ThreadModeRawMutex` - the type of Mutex that the Channel internally uses. It is a mutex that can safely be shared between threads
+- `bool` - the type of data that is sent through the channel
+- `64` - the maximum number of values that can be stored in the channel's queue
+
+One thread should send a value, and the other should receive it:
+
+```rust
+#[embassy_executor::task]
+async fn task1() {
+    loop {
+        Timer::after_secs(1).await;
+        CHANNEL.send(true).await;
+    }
+}
+
+#[embassy_executor::task]
+async fn task2(led: Output<'static>) {
+    loop {
+        let value = CHANNEL.receive().await;
+        match value {
+            true => led.toggle().unwrap(),
+            false => info!("We got something else")
+        }
+    }
+}
+```
+
+Your task is to implement a simple program that toggles the LED state when the `User` button is pressed, by dividing the work into a task that checks the button state every 10 milliseconds. You can check the state using the `is_high()` method.
+
+### `Signal`
+
+This is similar to a `Channel` with a buffer size of 1, except “sending” to it (calling `Signal::signal`) when full will overwrite the previous value instead of waiting for the receiver to pop the previous value.
+
+It is useful for sending data between tasks when the receiver only cares about the latest data, and therefore it's fine to “lose” messages. This is often the case for “state” updates.
+
+```rust
+
+use embassy_sync::signal::Signal;
+
+static SIG: Signal<CriticalSectionRawMutex, ()> = Signal::new();
+
+#[embassy_executor::task]
+async fn waiter() {
+    SIG.wait().await; // Wait until signaled
+    defmt::info!("Signal received!");
+}
+
+#[embassy_executor::task]
+async fn trigger() {
+    SIG.signal(()); // Notify the waiting task
+}
+```
+
+Rewrite the previous exercise using the `Signal` channel, and instead of checking the button every 10ms, simply await a rising edge on the button's pin.
