@@ -263,7 +263,7 @@ Before the transmission, both the `SCL` and `SDA` lines are set to `HIGH`. First
 
 ##### Transmission
 
-Depending on the command bit (R/W), either the controller or the target begins to send data over the `SDA` line. Data is sent one byte at a time, and then acknowledged by the receiver. One sequence of a data byte and `ack` is called a *frame*.
+Depending on the command bit (R/W), either the controller or the target begins to send data over the `SDA` line. Data is sent one byte at a time, and then acknowledged by the receiver. One sequence of a data byte and `ack` is called a *frame*. 
 
 During the communication, data can be:
 
