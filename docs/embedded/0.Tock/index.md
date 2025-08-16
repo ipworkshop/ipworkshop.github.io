@@ -14,7 +14,7 @@ The username and password are both `ipwembedded`.
 The VM has the port 3033 forwarded for SSH connection.
 :::
 
-If you did not attend the **Tock Workshop**, please follow the [Setup Tutorial](../tock_workshop/index.md).
+If you did not attend the **Tock Workshop**, please follow the [Setup Tutorial](../../tock_workshop/index.md).
 
 ## Getting Started
 
