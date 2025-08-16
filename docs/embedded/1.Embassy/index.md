@@ -244,7 +244,7 @@ The communication is *half-duplex*. This means that data is transmitted only in 
 :::
 
 :::info I2C inner works
-The `SDA` and `SCL` wires are never actually driven (set to `LOW`/`HIGH`) by the controller/peripherals. The line is controlled by either pulling the line low or releasing the line high. 
+The `SDA` and `SCL` wires are never actually driven (set to `LOW`/`HIGH`) by the controller/peripherals. The line is controlled by either pulling the line low or releasing the line high.
 
 When the line is *pulled down*, this means that it is connected directly to `GND`. This electronically translates to `LOW`.
 
@@ -263,15 +263,16 @@ Before the transmission, both the `SCL` and `SDA` lines are set to `HIGH`. First
 
 ##### Transmission
 
-Depending on the command bit (R/W), either the controller or the target begins to send data over the `SDA` line. Data is sent one byte at a time, and then acknowledged by the receiver. One sequence of a data byte and `ack` is called a *frame*. 
+Depending on the command bit (R/W), either the controller or the target begins to send data over the `SDA` line. Data is sent one byte at a time, and then acknowledged by the receiver. One sequence of a data byte and `ack` is called a *frame*.
 
 During the communication, data can be:
+
 - written to the `SDA` line *only* when `SCL` is `LOW` or
 - read from the `SDA` line *only* when `SCL` is `HIGH`.
 
 ##### End
 
-To end the transmission, the controller signals a `stop` condition. This is done by releasing the `SCL` line to `HIGH`, and then also releasing the `SDA` line. Since data can be written *only* when `SCL` is `LOW`, the target understands that this is a special event, that means that the communication has ended. 
+To end the transmission, the controller signals a `stop` condition. This is done by releasing the `SCL` line to `HIGH`, and then also releasing the `SDA` line. Since data can be written *only* when `SCL` is `LOW`, the target understands that this is a special event, that means that the communication has ended.
 
 ![i2c_transmission](assets/i2c_7bit_address_transmission.svg)
 
@@ -353,6 +354,7 @@ i2c.read(TARGET_ADDR, &mut rx_buf).await.unwrap();
 To write data to a target, we will be using the `write` **async** function of the I2C driver.
 
 This function also takes 2 parameters:
+
 - the address of the target we are attempting to transmit the data to
 - the *transmitting* buffer that contains the data we want to send to the target
 
@@ -433,3 +435,44 @@ After each complete memory write transaction, the EEPROM an internally-timed wri
 #### `eeprom24x` crate
 
 To simplify the interfacing with the non-volatile memory for your **project**, you can use the [`eeprom24x`](https://crates.io/crates/eeprom24x) crate. It is a is a platform agnostic Rust driver for the 24x series serial EEPROM, based on the [`embedded-hal`](https://docs.rs/embedded-hal/1.0.0/embedded_hal/) traits. This means that you will not be able to harness the power of the async executor, and you will need to use the conventional **blocking** API.
+
+## Asynchronous basics
+
+Until now you've only worked with simple (almost) serial programs. However, not all programs can be designed to run serially/sequentially. Handling multiple I/O events concurrently usually requires separate parallel tasks. For example, reading a button press while blinking an LED. A single loop would block the button reading event while waiting for the timer to finish.
+
+To address this issue, we would need to spawn a new task in which we would wait for the button press, while blinking the LED in the `main` function.
+
+The signature of the task that toggles the LED when the button is pressed would need to receive both an `Input` and `Output` as arguments.
+
+```rust title="src/bin/button_task.rs"
+#[embassy_executor::task]
+async fn button_task(mut led: Output<'static>, mut btn: ExtiInput<'static>) {
+    loop {
+        //  TODO:
+        //  * `await` button rising edge
+        //  * print message with `info!`
+        //  * toggle LED
+    }
+}
+```
+
+In the main function, tasks can be spawned using the `Spawner` provided as an argument.
+
+```rust title="src/bin/button_task.rs"
+#[embassy_executor::main]
+async fn main(spawner: Spawner) {
+    let p = embassy_stm32::init(Default::default());
+    
+    // TODO: initialize LEDs and button
+
+    spawner.must_spawn(button_task(led, btn));
+
+    loop {
+        // Handle other LED blink
+    }
+}
+```
+
+To periodically blink and LED, you will need to be able to introduce a delay. You can do so manually, by introducing a `for` loop with a number of steps that takes into account the frequency of the processor. The issue with this method is that it would do a *"busy loop"* where the processor spends both time and energy doing unproductive instructions.
+
+This approach does not benefit from the underlying `async` that could schedule another task with available work to be executed. If you want to introduce delays the *`embassy`* way, you can do it using the `Timer` interface, specifically the `Timer::after()` function which takes a `Duration`, or the more direct `after_milis`, `after_secs`, etc.
