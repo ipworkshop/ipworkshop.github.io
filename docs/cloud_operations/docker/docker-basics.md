@@ -933,6 +933,7 @@ CMD [ "python3", "server.py"]
 # 5. Specificam comanda default care porneste aplicatie in momentul in care containerul este up and
 # running
 
+```
 
 ```text
 
