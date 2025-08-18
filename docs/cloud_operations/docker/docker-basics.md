@@ -907,3 +907,46 @@ This note is here then to give credits to the teams that created the above resou
 information on Docker and other things, feel free to check them out!
 
 :::
+
+## Example Dockerfile
+
+```text
+
+FROM python:3.13.6-alpine
+
+WORKDIR /application
+
+COPY server.py /application
+
+COPY requirements.txt /application
+
+RUN pip install -r requirements.txt
+
+EXPOSE 5000
+
+CMD [ "python3", "server.py"]
+
+# 1. Plecam de la o imagine care are cat mai multe dependinte din ce ne trebuie noua
+# 2. Copiem fisierele necesare aplicatiei noastra
+# 3. Instalam eventuale dependinte
+# 4. Realizam eventuale configurari pentru a porni aplicatia
+# 5. Specificam comanda default care porneste aplicatie in momentul in care containerul este up and
+# running
+
+```
+
+```text
+
+The hierarchy where the Dockerfile is located looks like this:
+
+.
+├── Dockerfile
+├── requirements.txt
+├── server.py
+└── venv (for testing purposes)
+    ├── bin
+    ├── include
+    ├── lib
+    └── pyvenv.cfg
+
+```
