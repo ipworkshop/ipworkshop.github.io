@@ -560,3 +560,11 @@ async fn trigger() {
 ```
 
 Rewrite the previous exercise using the `Signal` channel, and instead of checking the button every 10ms, simply await a rising edge on the button's pin.
+
+:::note Shield schematic
+
+Schematic for the OxidOS shield that you can use in the project:
+
+![shield](assets/sch.png)
+
+:::
