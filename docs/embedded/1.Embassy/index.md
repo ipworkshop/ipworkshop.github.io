@@ -476,3 +476,11 @@ async fn main(spawner: Spawner) {
 To periodically blink and LED, you will need to be able to introduce a delay. You can do so manually, by introducing a `for` loop with a number of steps that takes into account the frequency of the processor. The issue with this method is that it would do a *"busy loop"* where the processor spends both time and energy doing unproductive instructions.
 
 This approach does not benefit from the underlying `async` that could schedule another task with available work to be executed. If you want to introduce delays the *`embassy`* way, you can do it using the `Timer` interface, specifically the `Timer::after()` function which takes a `Duration`, or the more direct `after_milis`, `after_secs`, etc.
+
+:::note Shield schematic
+
+Schematic for the OxidOS shield that you can use in the project:
+
+![shield](assets/sch.png)
+
+:::
