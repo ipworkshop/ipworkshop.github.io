@@ -38,8 +38,12 @@ sudo apt install -y pkg-config libudev-dev cmake git
 After that, use `cargo` to install `probe-rs`:
 
 ```shell
-cargo install probe-rs-tools --locked
+cargo install probe-rs-tools@0.29.1 --locked
 ```
+
+:::note
+The lastest `probe-rs` version does not work with the PSoC 6 board, we have to use an older version, 0.29.1.
+:::
 
 If you are using Linux, you will also need to add this [udev](https://probe.rs/files/69-probe-rs.rules) file in `/etc/udev/rules.d`. Then, run as root:
 
