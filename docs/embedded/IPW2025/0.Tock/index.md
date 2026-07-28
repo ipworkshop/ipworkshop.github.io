@@ -22,7 +22,7 @@ net use X: \\sshfs\ipwembedded@localhost!3033
 ```
 :::
 
-If you did not attend the **Tock Workshop**, please follow the [Setup Tutorial](../../tock_workshop/index.md).
+If you did not attend the **Tock Workshop**, please follow the [Setup Tutorial](/docs/embedded/IPW2025/Tock/index.md).
 
 ## Getting Started
 
