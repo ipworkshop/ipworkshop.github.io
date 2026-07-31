@@ -461,7 +461,7 @@ Distance sensor - Sharp
 ![Pinout LDO](images/pinout_ldo.png)   
 Voltage regulator - Texas instruments
 
-![RP2040 pinout](images/Arduino_Headers.svg)   
+![STM32U545 pinout](images/Arduino_Headers.svg)   
 STM32U545 MCU - STMicroelectronics
 </div>
 

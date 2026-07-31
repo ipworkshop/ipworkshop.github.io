@@ -5,7 +5,7 @@ position: 0
 
 # Intro to Rust
 
-We will use the [Rust](https://www.rust-lang.org/) programming language for the labs.
+We will use the [Rust](https://www.rust-lang.org/) programming language for this course.
 
 ## Resources
 1. The Rust Programming Language, Chapters [1](https://doc.rust-lang.org/book/ch01-00-getting-started.html), [2](https://doc.rust-lang.org/book/ch02-00-guessing-game-tutorial.html), [3](https://doc.rust-lang.org/book/ch03-00-common-programming-concepts.html) and [5](https://doc.rust-lang.org/book/ch05-00-structs.html)
@@ -16,6 +16,9 @@ We will use the [Rust](https://www.rust-lang.org/) programming language for the 
    - [Error Handling in Rust](https://www.youtube.com/watch?v=wM6o70NAWUI)
    - [Common Collections in Rust](https://www.youtube.com/watch?v=Zs-pS-egQSs)
 
+:::tip
+This lab is rather long, but it tries to be a really quick intro to Rust. We suggest going directly to the [Exercises](#exercises), solve one by one, and read the required documentation as you go.
+:::
 
 ## Standard library
 
@@ -29,7 +32,7 @@ The standard library is divided into three levels:
 
 :::note
 
-This course will mostly use the `core` level of the standard library, as the software has to run on a [Raspberry Pi Pico](https://www.raspberrypi.com/products/raspberry-pi-pico/).
+This course will mostly use the `core` level of the standard library, as the software has to run on a [STM32 Nucleo-U545RE-Q](https://www.st.com/en/evaluation-tools/nucleo-u545re-q.html).
 
 :::
 
@@ -347,7 +350,7 @@ struct Device(String, u8);
  
 fn main() {
     let black = Color(0, 0, 0);
-    let device = Device(String::from("Raspberry Pi Pico"), 2);
+    let device = Device(String::from("STM32 Nucleo-U545RE-Q"), 2);
 
     println!("The device type is {} and the version is {}", device.0, device.1);
 }
@@ -695,6 +698,16 @@ fn main() {
 }
 ```
 
+We can also write **for** loop in a more traditional way:
+
+```rust
+fn main() {
+    for i in 0..10 {
+        println!("the value is: {i}");
+    }
+}
+```
+
 :::info 
 
 For a better understanding, please read [chapter 3](https://doc.rust-lang.org/book/ch03-00-common-programming-concepts.html) of the documentation.
@@ -804,184 +817,111 @@ In order to run the program we may be anywhere in the crate's folder and execute
 cargo run
 ```
 
-## Ownership
-Ownership is a set of rules that govern how a Rust program manages memory. All programs must manage the way they use the memory of a computer while running.
+# Bitwise Operations in Rust
 
-Some languages have **garbage collection** that regularly searches for unused memory during program execution, in other languages, the programmer must explicitly allocate and release memory.
+When developing embedded software for the **STM32 Nucleo-U545RE-Q**, you are frequently required to configure specific hardware peripherals. Whether you are turning on one of the 5 LEDs or reading the state of the 4 buttons  on your lab board, you communicate with the microcontroller by modifying specific bits within its hardware registers.
 
-Rust uses a third approach: the memory is managed via a **property system** with a set of **rules** that the compiler verifies. If one of the rules is violated, the program will not compile. None of the property characteristics will slow down your program during its execution.
+Because hardware registers group multiple independent configuration settings into a single 32-bit (or 8-bit) word, you cannot simply overwrite the entire register without risking the disruption of other settings. This is where bitwise operations come in.
 
-### Ownership rules
-1. Each value in Rust has an **owner**
-2. A value cannot have more than one **owner** at a time
-3. When the values are out of scope, they are dropped
+## The Anatomy of a Hardware Register
 
-### Scope
-A **scope** is the code area of a program in which an element is valid.
+Registers in microcontrollers generally consist of bits grouped by their specific roles. Here is what those bits actually do under the hood:
 
-Here's an example to understand the concept:
-```rust
-{
-    // Here s is invalid
-    let s = "hello";   // s is valid past this point
-} // after this the value s will be dropped
-```
+- **Control bits**: These are used to control different operating modes of the microcontroller or to activate specific hardware components. For example, setting a specific control bit might turn on the UART communication peripheral.
+- **Status bits**: These are generally read-only bits used to check the state of an action or hardware peripheral. For instance, a status bit might turn to `1` automatically when new data has arrived in a buffer.
+- **Data bits**: These bits are used to provide the microcontroller with data to be processed, or to retrieve data from it.
+- **Reserved bits**: These bits are not currently used by the microcontroller. As a general rule in embedded programming, you should never modify reserved bits.
 
-### Ownership in functions
-The mechanisms for transmitting a value to a function are similar to those of assigning a value to a variable. Parsing a variable to a function will move or copy, just as the assignment does.
 
-Example (read the comments):
-```rust
-fn main() {
-    let s = String::from("hello");  // s comes into scope
- 
-    takes_ownership(s);             // s's value moves into the function...
-                                    // ... and so is no longer valid here
- 
-    let x = 5;                      // x comes into scope
- 
-    makes_copy(x);                  // a copy of x is passed to the function,
-                                    // but i32 is Copy, so it's okay to still
-                                    // use x afterward
- 
-} // Here, x goes out of scope, then s. But because s's value was moved, nothing
-  // special happens.
- 
-fn takes_ownership(some_string: String) { // some_string comes into scope
-    println!("{}", some_string);
-} // Here, some_string goes out of scope and `drop` is called. The backing
-  // memory is freed.
- 
-fn makes_copy(some_integer: i32) { // some_integer comes into scope
-    println!("{}", some_integer);
-} // Here, some_integer goes out of scope. Nothing special happens.
-```
+## Bit Shifting
 
-If we were trying to use s after the call to `take_ownership`, Rust would return a compilation error. These static checks protect us from errors.
+Before modifying registers, you need to know how to target a specific bit. We do this by taking the number `1` and "shifting" it to the correct position.
 
-### Return values and scope
+- Right Shift (`>>`): This moves each bit of the operand to the right by a specified number of positions. Zeros are added to the left to maintain the dimension of the number. Mathematically, shifting right is a highly efficient way to divide a binary number by $ 2^n $ in a single operation.
 
-The return values can also transfer the ownership.
+:::info
 
-The ownership of a variable follows the same pattern each time: the assignment of one value to another variable moves it. When a variable that includes data on the heap comes out of the scope, the value will be cleaned by **drop** unless the data ownership has been moved to another variable.
-
-Example (read the comments):
-```rust
-fn main() {
-    let s1 = gives_ownership();         // gives_ownership moves its return
-                                        // value into s1
- 
-    let s2 = String::from("hello");     // s2 comes into scope
- 
-    let s3 = takes_and_gives_back(s2);  // s2 is moved into
-                                        // takes_and_gives_back, which also
-                                        // moves its return value into s3
-} // Here, s3 goes out of scope and is dropped. s2 was moved, so nothing
-  // happens. s1 goes out of scope and is dropped.
- 
-fn gives_ownership() -> String {             // gives_ownership will move its
-                                             // return value into the function
-                                             // that calls it
- 
-    let some_string = String::from("yours"); // some_string comes into scope
- 
-    some_string                              // some_string is returned and
-                                             // moves out to the calling
-                                             // function
-}
- 
-// This function takes a String and returns one
-fn takes_and_gives_back(a_string: String) -> String { // a_string comes into
-                                                      // scope
- 
-    a_string  // a_string is returned and moves out to the calling function
-}
-```
-
-### References and borrowing
-A reference is like a pointer in the sense that it is an address that we can track to access the data stored at that address; these data belong to another variable. Unlike a pointer, a reference is guaranteed to point to a valid value of a particular type for the lifetime of this reference.
-
-The symbol `&` is used to mark a reference, either before the name of a variable, or, for the case of a parameter of a function, before the type of the parameter. These ampersands represent references and allow you to refer to a value without your own ownership.
-
-```rust
-let x: u16 = 10;
-let y = &x;
-```
-
-Example of a function which takes a reference to an object as a parameter instead of taking possession of this value:
-```rust
-fn main() {
-    let s1 = String::from("hello");
-    let len = calculate_length(&s1);
-    println!("The length of '{}' is {}.", s1, len);
-}
- 
-fn calculate_length(s: &String) -> usize { // s is a reference to a String
-    s.len()
-} // Here, s goes out of scope. But because it does not have ownership of what
-  // it refers to, it is not dropped.
-```
-
-The syntax `&s1` allows us to create a reference that refers to the value of s1 but does not. Since the reference does not have the value to which it points, the value of s1 will not be deleted when the reference ceases to be used.
-
-Similarly, the signature of the function uses & to indicate that the type of parameter s is a reference.
-
-We call borrowing the action of creating a reference. As in real life, you can borrow something from someone. When you don't need the borrowed thing anymore, you have to return it. You don't own it.
-
-Just as the variables are immutable by default, so are the references. We are not allowed to change the value pointed to by a reference
-
-### Mutable references
-
-If we want to change the value of a reference we have to say this explicitly to the compiler using the keyword `mut` Mutable references have a great restriction: if you have a mutable reference to a value, you cannot have other references to that value.
-
-Nor can we have a mutable reference while we have an immutable one to the same value.
-
-```rust
-fn main() {
-    let mut s = String::from("hello");
-    change(&mut s);
-}
- 
-fn change(some_string: &mut String) {
-    some_string.push_str(", world");
-}
-```
-
-:::warning
-
-Rules for references:
-1. At any time, you can have only a mutable reference or any number of immutable references but not both.
-2. References must always be **valid**.
+`1010 >> 1 = 0101` (In decimal: 10 divided by 2 becomes 5).
 
 :::
 
-## Copy trait
-Let's take a similar code to the one presented before:
-```rust
-let mut x:i32 = 0;
-let mut y = x;
-y = 5;
-println!("{x}"); // Prints 0
-```
-This time, the compiler seems to not have moved the variable ```x``` into ```y```. Why? Because i32 implements [`Copy`](https://doc.rust-lang.org/core/marker/trait.Copy.html). This is a trait used for types that are inexpensive to duplicate bit by bit, and which also do not allow 2 mutable references to the same location in memory.
+- Left Shift (`<<`): Moves bits to the left, filling the empty spaces on the right with zeros. Shifting left by n is mathematically equivalent to multiplying by $ 2^n $.
 
-|Type|Implements Copy|Reason|
-|---|---|---|
-|`i32`|	Yes| |
-|`f64`|	Yes| |
-|`bool`|	Yes| |
-|`String`|	No| It holds a pointer to its internal buffer. The buffer had to be duplicated when copying, action that a byte by byte copy is not able to do. |
-|`Vec<_>`|	No| It holds a pointer to its internal buffer. The buffer had to be duplicated when copying, action that a byte by byte copy is not able to do. |
-|`&str`| Yes| |
-|`&mut str`| No| Copying would create another mutable reference to the same value. |
+:::info
 
-You may implement the `Copy` trait to your structs and enums by using ```#[derive(Clone, Copy)]```
-
-:::warning
-
-You **must** implement `Clone` trait in order to derive `Copy`. Also, all of the fields must have types that implement `Copy`.
+`0011 << 1 = 0110` (In decimal: 3 multiplied by 2 becomes 6).
 
 :::
+
+## Modifying Registers
+
+Here are the primary operations you will use daily to manipulate bits without corrupting the rest of the register.
+
+### Setting Bits (Making them `1`)
+
+To set a specific bit to `1` while leaving the rest of the register untouched, we use the bitwise **OR** (`|`) operator.
+
+- **Set a single bit**: `register | 1 << bit`
+- **Set multiple bits**: `register | bits`
+
+### Clearing Bits (Making them `0`)
+
+To clear a specific bit to `0`, we use a combination of the bitwise **AND** (`&`) and bitwise **NOT** (`!`) operators.
+
+- **Clear a single bit**: `register & !(1 << bit)`
+- **Clear multiple bits**: `register & !bits`
+
+### Toggling / Flipping Bits
+
+If you need to invert the current state of a bit (change `1` to `0`, or `0` to `1`), use the bitwise **XOR** (`^`) operator.
+
+- **Flip a single bit**: `register ^ (1 << bit)`
+- **Flip multiple bits**: `register ^ bits`
+
+## Value Extraction(Masking)
+
+Often, a hardware register contains a specific multi-bit "field" (like a 4-bit configuration value) packed into a larger 32-bit word. To read just that field, you need to shift the bits down to the zero position and apply a **Mask** to zero-out everything else.
+
+Here is a practical example of extracting a specific portion of a 32-bit ID:
+
+```rust
+// We define a mask that isolates the bottom 12 bits
+const MASK: u32 = 0b0000_0000_0000_0000_0000_1111_1111_1111;
+
+fn main() {
+    // A 32-bit register value
+    let large_id: u32 = 0b1100_1010_1111_1100_0000_1111_0110_1101;
+    
+    // 1. Shift right by 20 to bring the target bits to the bottom
+    // 2. Apply the AND mask to clear all upper bits
+    let extracted_bits = (large_id >> 20) & MASK; 
+
+    // Result: 00000000_0000_0000_0000_1100_1010_1111 
+}
+```
+
+## Common Pitfalls
+
+Bitwise operations are prone to logical typos. Watch out for these common errors:
+
+:::warning 
+
+Using the assignment operator (`=`) instead of the compound bitwise operator (`|=` or `&=`).
+
+- **Wrong**: `register = 1 << 4` (This wipes out the entire register and only sets bit 4)
+- **Correct**: `register |= 1 << 4` (This preserves the rest of the register while setting bit 4).
+
+:::
+
+:::warning 
+
+Do not confuse **logical** operators with **bitwise** operators!
+
+- `&&` and `||` evaluate truthiness (e.g., `true && false`)
+- `&` and `|` perform mathematically accurate bit-by-bit operations (e.g., `0b1100 & 0b0101 = 0b0100`).
+
+:::
+
 
 ## Exercises
 
@@ -1012,4 +952,3 @@ Before tackling the exercises, take a look and cover chapters [1](https://tourof
 [^c_equivalent]: The data types used here are considered for a 32 bit system, for other architectures the equivalent data types might differ (`short` is at least 2 bytes long).
 [^java_unsigned]: Starting with Java 8, the `Number` classes have some helper methods, like `compareUnsigned` and `toUnsigned...` that allow the usage and manipulation of unsigned numbers.
 [^move_might_be_optimized]: The compiler might optimize out the shallow copy. https://users.rust-lang.org/t/how-move-works-in-rust/116776/19
-
