@@ -412,16 +412,16 @@ between holes `LED_BLUE` and `IO/D8`.
 1. Write an *empty* firmware that uses the Embassy Framework and `defmt`. (**1p**)
 Make sure you follow these steps:
 - create a new Rust project using `cargo init`;
-- add the `.cargo/config.toml` file that instructs `cargo` to [cross-compile](./01#using-a-configuration-file) for the `thumbv8m.main-none-eabihf`
-  architecture, add `probe-rs run` as a [runner](./01#using-cargo-run) and set [`defmt` messages filtering](./01#filtering-messages) to `DEBUG`;
-- add the [linker script](./01#linker-script) file called `memory.x`;
-- add the [build script](./01#build-script) file called `build.rs`;
-- add the required *Embassy* dependencies - take a look at [*Empty* Embassy Firmware](#empty-embassy-firmware) - take a look at [*Empty* Firmware](./01#empty-firmware);
+- add the `.cargo/config.toml` file that instructs `cargo` to cross-compile for the `thumbv8m.main-none-eabihf`
+  architecture, add `probe-rs run` as a runner and set `defmt` messages filtering to `DEBUG`;
+- add the `linker script` file called `memory.x`;
+- add the `build script` file called `build.rs`;
+- add the required *Embassy* dependencies - take a look at *Empty* Embassy Firmware;
 - use `defmt_rtt` as a logger, make sure you import it even if you are not using it directly `use ... as _`;
 - use `panic_probe` to provide a panic handler, make sure you import it even if you are not using it directly `use ... as _`;
 - ask the Rust compiler not to depend on the standard library, 
     not to provide a main function and 
-    add the *Embassy* [entry](#entry);
+    add the *Embassy* entry;
 - write the code to print the `info!` message "Device started".
 
 Please make sure you comment out (using `#` in from of the line) all the Embassy's crates 
@@ -472,7 +472,7 @@ The message might be printed many times for one press? Why? (**1p**)
 Read the value of S1 in a `loop` and print the message if the value is `LOW`.
 :::
 
-6. Instead of constantly sampling for the button value, use the [wait pin functions](#waiting-for-gpio-input) to 
+6. Instead of constantly sampling for the button value, use the `wait pin functions` to 
 wait for the value to change. Why is the message printed only once? (**1p**)
 
 :::tip
