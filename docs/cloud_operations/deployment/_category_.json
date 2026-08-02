@@ -1,0 +1,8 @@
+{
+  "label": "Shipping Your App",
+  "position": 3,
+  "link": {
+    "type": "generated-index",
+    "description": "Registries, configuration and what a real deployment looks like"
+  }
+}

@@ -1,0 +1,8 @@
+{
+  "label": "Orchestration & Swarm",
+  "position": 4,
+  "link": {
+    "type": "generated-index",
+    "description": "Why orchestration exists, and hands-on container orchestration with Docker Swarm"
+  }
+}

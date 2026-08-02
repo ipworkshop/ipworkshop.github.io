@@ -39,11 +39,10 @@ more containers to respond to a sudden surge in new users.
 
 ## Why would someone care about containerization?
 
-Imagine that you have built your billion-dollar application - the software which will revolutionize
-the world as we know it 💰! Now, all you need to do is to put it on a server so it can be accessed
+Imagine you have built an application and now you want to put it on a server so it can be accessed
 by everybody. You install all of your dependencies, `node`, `python`, etc., and your program
 crashes. You tracked down the culprit and there was a slight change in `node` that introduced a
-small bug. No worries, you change the version to one that works before.
+small bug. No worries, you change the version to the one that worked before.
 
 Then, after some weeks, you notice that your website keeps going down. After some investigation, you
 notice that there is a small bug in a mini-game you introduced as an easter egg. That small bug
@@ -62,8 +61,9 @@ reproducible environment**. This means that you have to specify your dependencie
 time a new container for your application is created it is guaranteed to work. More so, you can
 split up your application into multiple containers - for example, a container handles the database,
 one handles the user interface, and another handles that buggy mini-game. If one fails, the others
-will continue running. And, after you learn about **Kubernetes**, you will also understand how to
-start multiple instances of the same application to better handle bigger workloads.
+will continue running. And, after you learn about **orchestration** (with Docker Swarm, later this
+week), you will also understand how to start multiple instances of the same application to better
+handle bigger workloads.
 
 However, as a word of caution, don't start creating your application with the idea that it will have
 millions of users on the first day. Even some popular applications with millions of users [used
