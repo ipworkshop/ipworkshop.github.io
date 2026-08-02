@@ -20,12 +20,12 @@ Docker takes care of creating all of the required resources.
 
 ## Installation
 
-On Windows and MacOS, Docker Compose is part of the installation bundle for Docker Desktop. On,
+On Windows and MacOS, Docker Compose is part of the installation bundle for Docker Desktop. On
 Linux, you can check if you have Docker Compose installed by using the command:
 
 ```bash
 
-cristian@cristianson:~$ docker compose version
+testing$ docker compose version
 Docker Compose version v2.24.5
 
 ```
@@ -46,67 +46,68 @@ Markup Language). The format assumes the following concepts:
 ## Docker Compose example file
 
 ```yaml
-
-version: "3.8"
 services:
-    api:
-        build: . # use a Dockerfile located in the current directory to build the image
-        environment: # set some environment variables that will be available in the container at runtime
-            NODE_ENV: development
-            MY_ENV_VAR: my_custom_value
-        ports:
-            - "HOST_PORT:CONTAINER_PORT"
-            - "5000:80" # bind the 5000 port on the host machine to the port 80 inside the container 
-        networks:
-            - my-network # the container will be assigned to this network and will be able to
-                         # communicate only with containers which are part of the same network
+  api:
+    build: . # use a Dockerfile located in the current directory to build the image
+    environment: # set some environment variables that will be available in the container at runtime
+      NODE_ENV: development
+      MY_ENV_VAR: my_custom_value
+    ports:
+      - "HOST_PORT:CONTAINER_PORT"
+      - "5000:80" # bind the 5000 port on the host machine to the port 80 inside the container
+    networks:
+      - my-network # the container will be assigned to this network and will be able to
+        # communicate only with containers which are part of the same network
 
-    postgres:
-        image: postgres:12 # use the official postgres image, version 12
-        secrets: # the secret which is created at the bottom of the file is referenced here
-            - my_ultra_secret_password
-        environment:
-            PGPASSWORD_FILE: /run/secrets/my_ultra_secret_password
-        volumes:
-            - my-volume:/var/lib/postgresql/data
-            - ./init-script/init-db.sql:/docker-entrypoint-init.d/init-db.sql
-        networks:
-            - my-network
+  postgres:
+    image: postgres:12 # use the official postgres image, version 12
+    secrets: # the secret which is created at the bottom of the file is referenced here
+      - my_ultra_secret_password
+    environment:
+      POSTGRES_PASSWORD_FILE: /run/secrets/my_ultra_secret_password
+    volumes:
+      - my-volume:/var/lib/postgresql/data
+      - ./init-script/init-db.sql:/docker-entrypoint-initdb.d/init-db.sql
+    networks:
+      - my-network
 
 volumes:
-    my-volume:
+  my-volume:
 
 networks:
-    my-network:
+  my-network:
 
 secrets:
-    my_ultra_secret_password:
-        file: './who-stores-passwords-in-plain-text.txt'
-
+  my_ultra_secret_password:
+    file: "./who-stores-passwords-in-plain-text.txt"
 ```
 
 The inspiration for this Docker Compose file is from [here](https://mobylab.docs.crescdi.pub.ro/docs/softwareDevelopment/laboratory2/compose#exemplu-de-fi%C8%99ier-docker-compose).
 
 Let's break it down line by line:
 
-- `version`: the set of Docker Compose functionalities that will be used. This is the first line of
-each compose file and is **mandatory**. Omitting this line will result in an error.
+- `version`: you will see this line at the top of many older compose files (e.g. `version: "3.8"`).
+  It is **obsolete** - modern Docker Compose ignores it (and prints a warning if present). You don't
+  need it in new files, but don't be surprised when you find it in tutorials and older projects.
 
 - `services`: the containers that will run after the configuration is loaded by the Compose agent.
-Each service is basically a container. In the provided file, we have two services/containers, called
-**api** and **postgres**
+  Each service is basically a container. In the provided file, we have two services/containers, called
+  **api** and **postgres**
   - `build`: the directory where the Dockerfile used for creating the container image is located
   - `image`: the image used for running the container
   - `ports`: a list of `HOST_MACHINE_PORT: CONTAINER_PORT` entries
   - `volumes`: a list of `HOST_VOLUME: PATH_IN_CONTAINER` entries, where `HOST_VOLUME` can be either
-a Docker managed volume or a bind mount
+    a Docker managed volume or a bind mount
   - `networks`: a list of assigned networks for the container.
   - `secrets`: a list of secrets used inside the container
   - `environment`: object with multiple fields of type `ENV_VARIABLE_NAME: ENV_VARIABLE_VALUE`
 
 :::warning
 
-The `build` and `image` properties are mutually exclusive!
+Usually you specify either `build` **or** `image`: build your own image, or use an existing one.
+If you specify both, Compose builds the image from `build` and names the result with the value of
+`image`. Older Compose versions treated them as mutually exclusive, so you may still find that
+claim in old tutorials.
 
 :::
 
@@ -117,12 +118,10 @@ can have multiple properties, such as the storage driver that should be used or 
 exists on the host machine. More information on volumes [here](https://docs.docker.com/compose/compose-file/07-volumes/).
 
 ```yaml
-
 volumes:
   db-data:
     driver: foobar
     external: false
-
 ```
 
 ### Networks
@@ -132,12 +131,10 @@ can have multiple properties, such as the driver that should be used of if the n
 on the host machine. More information on networks [here](https://docs.docker.com/compose/compose-file/06-networks/).
 
 ```yaml
-
 networks:
   db-data:
     driver: bridge
     external: false
-
 ```
 
 ### Secrets
@@ -147,11 +144,9 @@ can have multiple properties. These are a flavor of [Configs](https://docs.docke
 focusing on hiding sensitive data. More information on secrets [here](https://docs.docker.com/compose/compose-file/09-secrets/).
 
 ```yaml
-
 secrets:
   server-certificate:
     file: ./server.cert
-
 ```
 
 `server-certificate` secret is created as `<project_name>_server-certificate` when the application
@@ -168,7 +163,7 @@ the meaning of a command, do `docker compose --help`.
 docker compose up -d                       # services run in the background, detached from the terminal that initialized them
 docker compose up --build                  # creates images before starting
 docker compose start                       # starts the containers
-docker compose pause                       # pauses the containers of a service (SIGPAUSE is sent)
+docker compose pause                       # freezes the containers of a service (processes suspended via the cgroup freezer, no signal sent)
 docker compose unpause                     # unpauses the containers
 docker compose ps                          # lists active containers
 docker compose ls                          # lists all container stacks
@@ -182,7 +177,7 @@ docker compose rm -s -v                    # with -s it stops all containers and
 ## Exercise (final boss)
 
 - Inspect the source code in [this repository](https://github.com/IPW-CloudOps/simple-node-app) and
-create a Docker Compose manifest file for that application.
+  create a Docker Compose manifest file for that application.
 - Check that the required services are up and running.
 - Do some requests to test the service.
 - Delete the stack

@@ -21,15 +21,15 @@ about this difference [here](https://aws.amazon.com/compare/the-difference-betwe
 In order to start a Docker container we use the following command:
 
 ```bash
-cristian@cristianson:~/Desktop/ipw-docker$ docker run -it ubuntu:22.04 bash
-Unable to find image 'ubuntu:22.04' locally
-22.04: Pulling from library/ubuntu
-3713021b0277: Already exists 
-Digest: sha256:340d9b015b194dc6e2a13938944e0d016e57b9679963fdeb9ce021daac430221
-Status: Downloaded newer image for ubuntu:22.04
-root@78f701a0d391:/# ls
-bin  boot  dev  etc  home  lib  lib32  lib64  libx32  media  mnt  opt  proc  root  run  sbin  srv  sys  tmp  usr  var
-root@78f701a0d391:/# 
+testing$ docker run -it ubuntu:24.04 bash
+Unable to find image 'ubuntu:24.04' locally
+24.04: Pulling from library/ubuntu
+4b987da45db4: Pull complete 
+5ba1b3e1daa0: Download complete 
+Digest: sha256:4fbb8e6a8395de5a7550b33509421a2bafbc0aab6c06ba2cef9ebffbc7092d90
+Status: Downloaded newer image for ubuntu:24.04
+root@7b02a8f3d2e9:/# ls
+bin  boot  dev  etc  home  lib  media  mnt  opt  proc  root  run  sbin  srv  sys  tmp  usr  var
 ```
 
 :::info
@@ -46,7 +46,7 @@ Let's break down the arguments of the `docker` command:
 - `-i`, the container is started in **interactive** mode, which means that it can accept keyboard
 input
 - `-t`, associates a terminal to the run command
-- `ubuntu:22.04` is the name of the **image** : **version** we want to use. Keep in mind that if we
+- `ubuntu:24.04` is the name of the **image** : **version** we want to use. Keep in mind that if we
 do not explicitly specify the version, than the latest image will be pulled from
 [Dockerhub](https://hub.docker.com/)
 - `bash`, the command we want to run in the container
@@ -62,11 +62,11 @@ If we want to see the local images we have downloaded from Dockerhub or created 
 
 ```bash
 
-cristian@cristianson:~/Desktop/ipw-docker$ docker image ls
-REPOSITORY          TAG       IMAGE ID       CREATED       SIZE
-ubuntu              22.04     8a3cdc4d1ad3   4 weeks ago   77.9MB
-ubuntu              latest    35a88802559d   7 weeks ago   78.1MB
+testing$ docker image ls
 
+i Info →   U  In Use
+IMAGE                      ID             DISK USAGE   CONTENT SIZE   EXTRA
+ubuntu:24.04               4fbb8e6a8395        139MB         30.8MB    U 
 ```
 
 :::tip
@@ -79,16 +79,13 @@ If you do not know what an argument does or what is the purpose of a command, us
 We can also run non-interactive commands in containers:
 
 ```bash
-cristian@cristianson:~/Desktop/ipw-docker$ docker run ubuntu:22.04 ls
+testing$ docker run ubuntu:24.04 ls
 bin
 boot
 dev
 etc
 home
 lib
-lib32
-lib64
-libx32
 media
 mnt
 opt
@@ -126,11 +123,11 @@ In order to start a container in the background, we use the `-d` option for the 
 command as follows:
 
 ```bash
-cristian@cristianson:~/Desktop/ipw-docker$ docker run -d ubuntu:22.04 sleep 100
-8b3d484ae9ad92f669d2780faaa1b1dc850922029391bf13a12de84014610758
-cristian@cristianson:~/Desktop/ipw-docker$ docker ps
-CONTAINER ID   IMAGE          COMMAND       CREATED         STATUS         PORTS     NAMES
-8b3d484ae9ad   ubuntu:22.04   "sleep 100"   2 seconds ago   Up 2 seconds             distracted_sammet
+testing$ docker run -d ubuntu:24.04 sleep 100
+601909a9366d1c159a3546befe77966ceb6ee7572660f778a03bf18c6551d314
+testing$ docker ps
+CONTAINER ID   IMAGE          COMMAND       CREATED          STATUS          PORTS     NAMES
+601909a9366d   ubuntu:24.04   "sleep 100"   11 seconds ago   Up 11 seconds             sharp_noether
 ```
 
 The breakdown of the columns in the `docker ps` output are:
@@ -156,9 +153,8 @@ Running `docker ps` after 100 seconds confirms this:
 
 ```bash
 
-cristian@cristianson:~/Desktop/ipw-docker$ docker ps
+testing$ docker ps
 CONTAINER ID   IMAGE     COMMAND   CREATED   STATUS    PORTS     NAMES
-
 ```
 
 :::tip
@@ -173,16 +169,15 @@ interactively with the `docker exec` command.
 
 ```bash
 
-cristian@cristianson:~/Desktop/ipw-docker$ docker run -d ubuntu:22.04 sleep 1000
-48d58d5ab0a17c69dadcf5e3c6cfd8be519845cae3c67f41da19fe5ffc1f6382
-cristian@cristianson:~/Desktop/ipw-docker$ docker ps
+testing$ docker run -d ubuntu:24.04 sleep 1000
+c1efcf61967b8b5e04f868115c21e4f2c3cf19686708e0bbfb529977be758710
+testing$ docker ps
 CONTAINER ID   IMAGE          COMMAND        CREATED          STATUS          PORTS     NAMES
-48d58d5ab0a1   ubuntu:22.04   "sleep 1000"   11 seconds ago   Up 10 seconds             zen_hodgkin
-cristian@cristianson:~/Desktop/ipw-docker$ docker exec -it 48d58d5ab0a1 /bin/bash
-root@48d58d5ab0a1:/# ls
-bin  boot  dev  etc  home  lib  lib32  lib64  libx32  media  mnt  opt  proc  root  run  sbin  srv  sys  tmp  usr  var
-root@48d58d5ab0a1:/#
-
+c1efcf61967b   ubuntu:24.04   "sleep 1000"   12 seconds ago   Up 12 seconds             determined_robinson
+testing$ docker exec -it c1efcf61967b /bin/bash
+root@c1efcf61967b:/# ls
+bin  boot  dev  etc  home  lib  media  mnt  opt  proc  root  run  sbin  srv  sys  tmp  usr  var
+root@c1efcf61967b:/#    
 ```
 
 The format of the `docker exec` command is similar to that of `docker run`. We have used the `-it`
@@ -190,44 +185,30 @@ flags to start an interactive session with an attached terminal and we have chos
 `/bin/bash` command. It is important to note that the container is uniquely identified via its
 **ID** or assigned name in the **NAMES** column.
 
-Now, we want to stop the running container because we its no fun to wait 1000 seconds to exit
+Now, we want to stop the running container because it's no fun to wait 1000 seconds to exit
 automatically. In order to do this, we use the `docker stop` command with the container's **ID** or
 **NAME**.
 
 ```bash
 
-cristian@cristianson:~/Desktop/ipw-docker$ docker ps
-CONTAINER ID   IMAGE          COMMAND        CREATED         STATUS         PORTS     NAMES
-48d58d5ab0a1   ubuntu:22.04   "sleep 1000"   5 minutes ago   Up 5 minutes             zen_hodgkin
-cristian@cristianson:~/Desktop/ipw-docker$ docker stop 48d58d5ab0a1
-48d58d5ab0a1
-cristian@cristianson:~/Desktop/ipw-docker$ docker ps
+testing$ docker ps
+CONTAINER ID   IMAGE          COMMAND        CREATED              STATUS              PORTS     NAMES
+c1efcf61967b   ubuntu:24.04   "sleep 1000"   About a minute ago   Up About a minute             determined_robinson
+testing$ docker stop c1efcf61967b
+c1efcf61967b
+testing$ docker ps
 CONTAINER ID   IMAGE     COMMAND   CREATED   STATUS    PORTS     NAMES
-cristian@cristianson:~/Desktop/ipw-docker$ docker ps -a
-CONTAINER ID   IMAGE          COMMAND        CREATED         STATUS                       PORTS     NAMES
-48d58d5ab0a1   ubuntu:22.04   "sleep 1000"   5 minutes ago   Exited (137) 3 seconds ago             zen_hodgkin
-8b3d484ae9ad   ubuntu:22.04   "sleep 100"    24 hours ago    Exited (0) 24 hours ago                distracted_sammet
-a236cc7b0efa   ubuntu:22.04   "sleep 5"      24 hours ago    Exited (0) 24 hours ago                hardcore_ritchie
-94ef886a0e61   ubuntu:22.04   "sleep 1"      24 hours ago    Exited (0) 24 hours ago                serene_keller
-c7591793567d   ubuntu:22.04   "ls"           24 hours ago    Exited (0) 24 hours ago                adoring_jang
-d5cd0c63b9bb   ubuntu:22.04   "ps aux"       24 hours ago    Exited (0) 24 hours ago                condescending_mcclintock
-f81e1edf1b36   ubuntu:22.04   "lsdir"        24 hours ago    Created                                condescending_wu
-77fa7ff22c40   ubuntu:22.04   "ls"           24 hours ago    Exited (0) 24 hours ago                pedantic_lewin
-707ae3470fe6   ubuntu:22.04   "ps -ef"       24 hours ago    Exited (0) 24 hours ago                exciting_heisenberg
-cf3998b22236   ubuntu:22.04   "cat"          24 hours ago    Exited (0) 24 hours ago                bold_ritchie
-78f701a0d391   ubuntu:22.04   "bash"         25 hours ago    Exited (130) 24 hours ago              unruffled_feistel
-081fcd62be22   ubuntu         "bash"         25 hours ago    Exited (130) 25 hours ago              interesting_swanson
-f65bb2661f94   ubuntu         "bash"         25 hours ago    Exited (130) 25 hours ago              friendly_liskov
-5b7f19201652   alpine         "shell"        25 hours ago    Created                                youthful_roentgen
-eb2c9ced368b   alpine         "bash"         25 hours ago    Created                                magical_satoshi
-5b27ae6a1c47   alpine         "bash"         25 hours ago    Created                                epic_volhard
-cristian@cristianson:~/Desktop/ipw-docker$
+testing$ docker ps -a
+CONTAINER ID   IMAGE                COMMAND                  CREATED         STATUS                       PORTS                                         NAMES
+c1efcf61967b   ubuntu:24.04         "sleep 1000"             2 minutes ago   Exited (137) 8 seconds ago                                                 determined_robinson
+601909a9366d   ubuntu:24.04         "sleep 100"              4 minutes ago   Exited (0) 2 minutes ago                                                   sharp_noether
+5a1f3b26732c   ubuntu:24.04         "ls"                     4 minutes ago   Exited (0) 4 minutes ago                                                   pensive_cartwright
+7b02a8f3d2e9   ubuntu:24.04         "bash"                   8 minutes ago   Exited (130) 4 minutes ago                                                 elastic_engelbart
 
 ```
 
 We can see that the container is no longer running. Sometimes the stop command takes a while, so
-do not abort it. Also, if we pass the `-a` argument to the `docker stop` command, it will also list
-the containers that were stopped. We can see that the first container, **zen_hodgkin** is the one
+do not abort it. We can see that the first container, **determined_robinson** is the one
 we stopped earlier.
 
 ## Exercise 1
@@ -256,8 +237,7 @@ So far, we have used the containers interactively. Most of the times, however, t
 A container is a separate unit of computing with a well defined purpose. That is, it should do one
 single thing, and do it well.
 
-For example, we might have a web application with multiple components, and we have decided to split
-encapsulate each component in its own docker container. That is:
+For example, we might have a web application with multiple components, and we have decided to split each component in its own docker container. That is:
 
 - a database container
 - a backend container
@@ -278,7 +258,7 @@ docker image. To accomplish this, we will create a `Dockerfile`.
 
 ```text
 
-FROM ubuntu:22.04
+FROM ubuntu:24.04
 
 ARG DEBIAN_FRONTEND=noninteractive
 ARG DEBCONF_NONINTERACTIVE_SEEN=true
@@ -313,13 +293,25 @@ Once we have created the `Dockerfile`, we can build our image using the followin
 
 ```bash
 
-cristian@cristianson:~/Desktop/ipw-docker$ docker build -t my-container .
-[+] Building 30.7s (7/7) FINISHED
-[...]
- => exporting to image                                                                                                                                                                    1.0s 
- => => exporting layers                                                                                                                                                                   0.9s 
- => => writing image sha256:7493be1166b06d3521599a21c1ece1c5b4e2d438c3dacef0935e74d927aa875e                                                                                              0.0s 
- => => naming to docker.io/library/my-container
+testing$ docker build -t my-container .
+[+] Building 127.9s (7/7) FINISHED                                                                                                                                         docker:orbstack
+ => [internal] load build definition from Dockerfile                                                                                                                                  0.4s
+ => => transferring dockerfile: 201B                                                                                                                                                  0.0s
+ => [internal] load metadata for docker.io/library/ubuntu:24.04                                                                                                                       0.2s
+ => [internal] load .dockerignore                                                                                                                                                     0.3s
+ => => transferring context: 2B                                                                                                                                                       0.0s
+ => [1/3] FROM docker.io/library/ubuntu:24.04@sha256:4fbb8e6a8395de5a7550b33509421a2bafbc0aab6c06ba2cef9ebffbc7092d90                                                                 0.4s
+ => => resolve docker.io/library/ubuntu:24.04@sha256:4fbb8e6a8395de5a7550b33509421a2bafbc0aab6c06ba2cef9ebffbc7092d90                                                                 0.1s
+ => [2/3] RUN apt-get update                                                                                                                                                          9.0s
+ => [3/3] RUN apt-get install -y firefox                                                                                                                                            108.4s 
+ => exporting to image                                                                                                                                                                8.6s 
+ => => exporting layers                                                                                                                                                               6.6s 
+ => => exporting manifest sha256:980fe383aca0a86245d2020cd6df024d135f17084291d5925f70fb667b9d74ed                                                                                     0.1s 
+ => => exporting config sha256:51c8700ae436e3ffb4fc03cef25a4504f8ea2ab597dbdc32f0762d064784cc25                                                                                       0.1s 
+ => => exporting attestation manifest sha256:ddaecfe5582b5f185d047385982d77f6372c883c4dae90a450491ad9c7f9862f                                                                         0.1s 
+ => => exporting manifest list sha256:23f61fab77183b6fc4dea68f35918760a3820cd04cb2daa10653a96865a2a887                                                                                0.1s 
+ => => naming to docker.io/library/my-container:latest                                                                                                                                0.0s
+ => => unpacking to docker.io/library/my-container:latest
 
 ```
 
@@ -342,9 +334,12 @@ any other name we may come up with, we need to specify this to the `docker build
 Now that we have built our image, let's run `docker image ls`:
 
 ```bash
-cristian@cristianson:~/Desktop/ipw-docker$ docker image ls
-REPOSITORY         TAG       IMAGE ID       CREATED          SIZE                                                
-my-container       latest    7493be1166b0   13 minutes ago   369MB
+
+testing$ docker image ls
+                                                               i Info →   U  In Use
+IMAGE                      ID             DISK USAGE   CONTENT SIZE   EXTRA    
+my-container:latest        23f61fab7718        645MB          171MB      
+ubuntu:24.04               4fbb8e6a8395        139MB         30.8MB    U 
 
 ```
 
@@ -353,10 +348,10 @@ image and verify if the environment variable has been correctly set up:
 
 ```bash
 
-cristian@cristianson:~/Desktop/ipw-docker$ docker run -it my-container bash
-root@40b9e8dae8f1:/# echo $HELLO
+testing$ docker run -it my-container bash
+root@6ebbfa721d34:/# echo $HELLO
 hello
-root@40b9e8dae8f1:/# 
+root@6ebbfa721d34:/# 
 
 ```
 
@@ -364,50 +359,19 @@ Nice! We did it. We could have also checked that the image had the **HELLO** env
 set by using the `docker image inspect` command.
 
 ```bash
-
-cristian@cristianson:~/Desktop/ipw-docker$ docker image inspect my-container
+testing$ docker image inspect my-container
 [
     {
-        "Id": "sha256:7493be1166b06d3521599a21c1ece1c5b4e2d438c3dacef0935e74d927aa875e",
+        "Id": "sha256:23f61fab77183b6fc4dea68f35918760a3820cd04cb2daa10653a96865a2a887",
         "RepoTags": [
             "my-container:latest"
         ],
-        "RepoDigests": [],
-        "Parent": "",
+        "RepoDigests": [
+            "my-container@sha256:23f61fab77183b6fc4dea68f35918760a3820cd04cb2daa10653a96865a2a887"
+        ],
         "Comment": "buildkit.dockerfile.v0",
-        "Created": "2024-08-01T13:51:50.003474082+03:00",
-        "Container": "",
-        "ContainerConfig": {
-            "Hostname": "",
-            "Domainname": "",
-            "User": "",
-            "AttachStdin": false,
-            "AttachStdout": false,
-            "AttachStderr": false,
-            "Tty": false,
-            "OpenStdin": false,
-            "StdinOnce": false,
-            "Env": null,
-            "Cmd": null,
-            "Image": "",
-            "Volumes": null,
-            "WorkingDir": "",
-            "Entrypoint": null,
-            "OnBuild": null,
-            "Labels": null
-        },
-        "DockerVersion": "",
-        "Author": "",
+        "Created": "2026-08-02T15:59:30.946160563+03:00",
         "Config": {
-            "Hostname": "",
-            "Domainname": "",
-            "User": "",
-            "AttachStdin": false,
-            "AttachStdout": false,
-            "AttachStderr": false,
-            "Tty": false,
-            "OpenStdin": false,
-            "StdinOnce": false,
             "Env": [
                 "PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
                 "HELLO=hello"
@@ -415,42 +379,39 @@ cristian@cristianson:~/Desktop/ipw-docker$ docker image inspect my-container
             "Cmd": [
                 "/bin/bash"
             ],
-            "Image": "",
-            "Volumes": null,
-            "WorkingDir": "",
-            "Entrypoint": null,
-            "OnBuild": null,
             "Labels": {
-                "org.opencontainers.image.ref.name": "ubuntu",
-                "org.opencontainers.image.version": "22.04"
+                "org.opencontainers.image.version": "24.04"
             }
         },
-        "Architecture": "amd64",
+        "Architecture": "arm64",
         "Os": "linux",
-        "Size": 369369133,
-        "GraphDriver": {
-            "Data": {
-                "LowerDir": "/var/lib/docker/overlay2/p323vqywxcogfgl6sadeqwrsc/diff:/var/lib/docker/overlay2/372a31c779498a88a96829322ca93f496d0cf79a3a23f4c46b276f6670199ccc/diff",
-                "MergedDir": "/var/lib/docker/overlay2/aakuflif4l5nqvh24azlltsw4/merged",
-                "UpperDir": "/var/lib/docker/overlay2/aakuflif4l5nqvh24azlltsw4/diff",
-                "WorkDir": "/var/lib/docker/overlay2/aakuflif4l5nqvh24azlltsw4/work"
-            },
-            "Name": "overlay2"
-        },
+        "Size": 170612144,
         "RootFS": {
             "Type": "layers",
             "Layers": [
-                "sha256:931b7ff0cb6f494b27d31a4cbec3efe62ac54676add9c7469560302f1541ecaf",
-                "sha256:7b75401998b8840828c675a5956ab91e405aec86d363e76b4a0d645bb1a8414e",
-                "sha256:c7e0e739bfbbcc8f59a777e8bb57b845ece9598a8a1df45833dc215104ad7dd1"
+                "sha256:2c042ab36ee22da5e09730c3dce27e9d84ff1cc8af8e5a8ed2275c05f0133445",
+                "sha256:3f937fb6a9308fdfbec41287ca027d3635b9646313d4c1ae2d74c39fc67a3d1f",
+                "sha256:cde187a798856c66a1fe225287a882f91e42659ffbce3c138db028886fb871a0"
             ]
         },
         "Metadata": {
-            "LastTagTime": "2024-08-01T13:51:50.961377181+03:00"
+            "LastTagTime": "2026-08-02T12:59:38.147297006Z"
+        },
+        "Descriptor": {
+            "mediaType": "application/vnd.oci.image.index.v1+json",
+            "digest": "sha256:23f61fab77183b6fc4dea68f35918760a3820cd04cb2daa10653a96865a2a887",
+            "size": 855
+        },
+        "Identity": {
+            "Build": [
+                {
+                    "Ref": "pd4z4gjiajagln24tqxpk7wlb",
+                    "CreatedAt": "2026-08-02T15:59:39.662606468+03:00"
+                }
+            ]
         }
     }
 ]
-
 ```
 
 We can see that in the `Env` section we have our **HELLO** env variable.
@@ -503,7 +464,7 @@ even want to isolate the traffic between certain containers and create sub-netwo
 
 :::info
 
-You can read for about docker networking [here](https://docs.docker.com/network/).
+You can read about docker networking [here](https://docs.docker.com/network/).
 
 :::
 
@@ -519,7 +480,7 @@ it is easier if you open two separate terminal tabs.
 
 ```bash
 
-cristian@cristianson:~$ docker container run --name first -it alpine ash
+testing$ docker container run --name first -it alpine ash
 / # 
 
 
@@ -527,7 +488,7 @@ cristian@cristianson:~$ docker container run --name first -it alpine ash
 
 ```bash
 
-cristian@cristianson:~$ docker container run --name second -it alpine ash
+testing$ docker container run --name second -it alpine ash
 / # 
 
 ```
@@ -539,7 +500,7 @@ thing from the `second` container.
 
 ```bash
 
-cristian@cristianson:~$ docker container run --name first -it alpine ash
+testing$ docker container run --name first -it alpine ash
 / # ping second
 ping: bad address 'second'
 / # 
@@ -548,7 +509,7 @@ ping: bad address 'second'
 
 ```bash
 
-cristian@cristianson:~$ docker container run --name second -it alpine ash
+testing$ docker container run --name second -it alpine ash
 / # ping first
 ping: bad address 'first'
 / # 
@@ -566,16 +527,17 @@ You can ask the course instructors about more information about these two networ
 ```bash
 
 / # ifconfig
-eth0      Link encap:Ethernet  HWaddr 02:42:AC:11:00:02  
-          inet addr:172.17.0.2  Bcast:172.17.255.255  Mask:255.255.0.0
+eth0      Link encap:Ethernet  HWaddr 22:35:23:26:1C:01  
+          inet addr:192.168.215.2  Bcast:192.168.215.255  Mask:255.255.255.0
           UP BROADCAST RUNNING MULTICAST  MTU:1500  Metric:1
-          RX packets:67 errors:0 dropped:0 overruns:0 frame:0
-          TX packets:4 errors:0 dropped:0 overruns:0 carrier:0
+          RX packets:19 errors:0 dropped:0 overruns:0 frame:0
+          TX packets:6 errors:0 dropped:0 overruns:0 carrier:0
           collisions:0 txqueuelen:0 
-          RX bytes:8933 (8.7 KiB)  TX bytes:216 (216.0 B)
+          RX bytes:1514 (1.4 KiB)  TX bytes:300 (300.0 B)
 
 lo        Link encap:Local Loopback  
           inet addr:127.0.0.1  Mask:255.0.0.0
+          inet6 addr: ::1/128 Scope:Host
           UP LOOPBACK RUNNING  MTU:65536  Metric:1
           RX packets:0 errors:0 dropped:0 overruns:0 frame:0
           TX packets:0 errors:0 dropped:0 overruns:0 carrier:0
@@ -591,14 +553,14 @@ Let's make these containers communicate! First, create a docker network object:
 
 ```bash
 
-cristian@cristianson:~$ docker network create -d bridge my-bridge
-8508d7585c6b8145da8afac4bf159de14293c4fd11ebcf2662e3367fc46d92c9
-cristian@cristianson:~$ docker network ls
-NETWORK ID     NAME        DRIVER    SCOPE
-9ccf3f0b6346   bridge      bridge    local
-1e22e9263c46   host        host      local
-8508d7585c6b   my-bridge   bridge    local
-294f9f02c5c1   none        null      local
+testing$ docker network create -d bridge my-bridge
+ee64c96afe1f20050c02723d6766c695da56757b50a4d8a4fe14ddedcc6614bf
+testing$ docker network ls
+NETWORK ID     NAME                    DRIVER    SCOPE
+79b4e9ec9c06   bridge                  bridge    local
+4226c6f0f2cc   host                    host      local
+ee64c96afe1f   my-bridge               bridge    local
+eea878851ad3   none                    null      local
 
 ```
 
@@ -615,8 +577,8 @@ the containers to the network while they are still running. We could have also a
 
 ```bash
 
-cristian@cristianson:~$ docker network connect my-bridge first
-cristian@cristianson:~$ docker network connect my-bridge second
+testing$ docker network connect my-bridge first
+testing$ docker network connect my-bridge second
 
 ```
 
@@ -625,30 +587,30 @@ It was that easy! Running an `ifconfig` now yields:
 ```bash
 
 / # ifconfig
-eth0      Link encap:Ethernet  HWaddr 02:42:AC:11:00:02  
-          inet addr:172.17.0.2  Bcast:172.17.255.255  Mask:255.255.0.0
+eth0      Link encap:Ethernet  HWaddr 22:35:23:26:1C:01  
+          inet addr:192.168.215.2  Bcast:192.168.215.255  Mask:255.255.255.0
           UP BROADCAST RUNNING MULTICAST  MTU:1500  Metric:1
-          RX packets:129 errors:0 dropped:0 overruns:0 frame:0
-          TX packets:4 errors:0 dropped:0 overruns:0 carrier:0
+          RX packets:19 errors:0 dropped:0 overruns:0 frame:0
+          TX packets:6 errors:0 dropped:0 overruns:0 carrier:0
           collisions:0 txqueuelen:0 
-          RX bytes:18254 (17.8 KiB)  TX bytes:216 (216.0 B)
+          RX bytes:1514 (1.4 KiB)  TX bytes:300 (300.0 B)
 
-eth1      Link encap:Ethernet  HWaddr 02:42:AC:14:00:02  
-          inet addr:172.20.0.2  Bcast:172.20.255.255  Mask:255.255.0.0
+eth1      Link encap:Ethernet  HWaddr 2A:63:09:C6:D2:2E  
+          inet addr:192.168.117.2  Bcast:192.168.117.255  Mask:255.255.255.0
           UP BROADCAST RUNNING MULTICAST  MTU:1500  Metric:1
-          RX packets:66 errors:0 dropped:0 overruns:0 frame:0
-          TX packets:0 errors:0 dropped:0 overruns:0 carrier:0
+          RX packets:19 errors:0 dropped:0 overruns:0 frame:0
+          TX packets:3 errors:0 dropped:0 overruns:0 carrier:0
           collisions:0 txqueuelen:0 
-          RX bytes:9143 (8.9 KiB)  TX bytes:0 (0.0 B)
+          RX bytes:1782 (1.7 KiB)  TX bytes:126 (126.0 B)
 
 lo        Link encap:Local Loopback  
           inet addr:127.0.0.1  Mask:255.0.0.0
+          inet6 addr: ::1/128 Scope:Host
           UP LOOPBACK RUNNING  MTU:65536  Metric:1
           RX packets:0 errors:0 dropped:0 overruns:0 frame:0
           TX packets:0 errors:0 dropped:0 overruns:0 carrier:0
           collisions:0 txqueuelen:1000 
           RX bytes:0 (0.0 B)  TX bytes:0 (0.0 B)
-
 
 ```
 
@@ -657,13 +619,13 @@ We have one extra network interface, `eth1`. Let's ping again the `second` conta
 ```bash
 
 / # ping -c2 second
-PING second (172.20.0.3): 56 data bytes
-64 bytes from 172.20.0.3: seq=0 ttl=64 time=0.328 ms
-64 bytes from 172.20.0.3: seq=1 ttl=64 time=0.181 ms
+PING second (192.168.117.3): 56 data bytes
+64 bytes from 192.168.117.3: seq=0 ttl=64 time=0.668 ms
+64 bytes from 192.168.117.3: seq=1 ttl=64 time=0.223 ms
 
 --- second ping statistics ---
 2 packets transmitted, 2 packets received, 0% packet loss
-round-trip min/avg/max = 0.181/0.254/0.328 ms
+round-trip min/avg/max = 0.223/0.445/0.668 ms
 / # 
 
 ```
@@ -733,11 +695,11 @@ Let's see how we can create a volume a runtime with the following command:
 
 ```bash
 
-cristian@cristianson:~$ docker container run --name ipw -d -v /test alpine sh -c 'ping 8.8.8.8 > /test/ping.txt'
-3e6beddbd15e43365be7f863023a43cffcdbab86916d78c553ec0822b58f9b6a4
-cristian@cristianson:~$ docker ps
-CONTAINER ID   IMAGE     COMMAND                  CREATED         STATUS        PORTS     NAMES
-3e6beddbd15e   alpine    "sh -c 'ping 8.8.8.8…"   2 seconds ago   Up 1 second             ipw
+testing$ docker container run --name ipw -d -v /test alpine sh -c 'ping 8.8.8.8 > /test/ping.txt'
+02159b8baf1ab329f5cb97675392cf27a95c6914e8d0de0b0681e0330c26ba6a
+testing$ docker ps
+CONTAINER ID   IMAGE     COMMAND                  CREATED              STATUS              PORTS     NAMES
+02159b8baf1a   alpine    "sh -c 'ping 8.8.8.8…"   About a minute ago   Up About a minute             ipw
 
 ```
 
@@ -750,9 +712,9 @@ Now, if we do a `docker volume ls` we should see:
 
 ```bash
 
-cristian@cristianson:~$ docker volume ls
+testing$ docker volume ls         
 DRIVER    VOLUME NAME
-local     a5ec5808eb58a6cc5551bd5f979f038f99015668f79314bec28ada192880d065
+local     e95a6799435b2b33c2f8d2ec61ec17ab3d7dd25c28ef71de469fb87926e911ea
 
 ```
 
@@ -760,16 +722,16 @@ Let's see if we can get more information about our newly created volume:
 
 ```bash
 
-cristian@cristianson:~$ docker volume inspect a5ec5808eb58a6cc5551bd5f979f038f99015668f79314bec28ada192880d065
+testing$ docker volume inspect e95a6799435b2b33c2f8d2ec61ec17ab3d7dd25c28ef71de469fb87926e911ea 
 [
     {
-        "CreatedAt": "2024-08-02T12:20:22+03:00",
+        "CreatedAt": "2026-08-02T16:14:39+03:00",
         "Driver": "local",
         "Labels": {
             "com.docker.volume.anonymous": ""
         },
-        "Mountpoint": "/var/lib/docker/volumes/a5ec5808eb58a6cc5551bd5f979f038f99015668f79314bec28ada192880d065/_data",
-        "Name": "a5ec5808eb58a6cc5551bd5f979f038f99015668f79314bec28ada192880d065",
+        "Mountpoint": "/var/lib/docker/volumes/e95a6799435b2b33c2f8d2ec61ec17ab3d7dd25c28ef71de469fb87926e911ea/_data",
+        "Name": "e95a6799435b2b33c2f8d2ec61ec17ab3d7dd25c28ef71de469fb87926e911ea",
         "Options": null,
         "Scope": "local"
     }
@@ -777,27 +739,89 @@ cristian@cristianson:~$ docker volume inspect a5ec5808eb58a6cc5551bd5f979f038f99
 
 ```
 
-The `Mountpoint` label specifies the location on the host machine were the volume data is stored. If
-we list the contents of that folder than we would get the following output:
+The `Mountpoint` label specifies the location on the host machine where the volume data is stored. If
+we list the contents of that folder then we would get the following output:
 
 ```bash
 
-cristian@cristianson:~$ sudo ls  /var/lib/docker/volumes/a5ec5808eb58a6cc5551bd5f979f038f99015668f79314bec28ada192880d065/_data
-[sudo] password for cristian: 
+testing$ sudo ls ~/OrbStack/docker/volumes/e95a6799435b2b33c2f8d2ec61ec17ab3d7dd25c28ef71de469fb87926e911ea/
+[sudo] password for: 
 ping.txt
 
 ```
 
-Doing a `cat` inside the file we get:
+:::warning Where is this folder on Windows and macOS?
+
+`/var/lib/docker/...` is a **Linux path**. It only exists directly on your machine if you run
+Docker natively on Linux. On Windows and macOS, Docker actually runs inside a hidden Linux virtual
+machine, and this path exists *inside that VM*, not in Explorer/Finder. If the `sudo ls` above
+fails for you with "No such file or directory", this is why.
+
+The portable way to look inside any volume, on any OS, is to mount it into a small throwaway
+container:
+
+```bash
+docker run --rm -it -v VOLUME_NAME:/vol alpine ls -la /vol
+```
+
+You can also copy the whole volume contents to your current directory:
+
+```bash
+docker run --rm -v VOLUME_NAME:/vol -v "$PWD":/out alpine cp -r /vol /out/volume-data
+```
+
+If you do want to reach the raw files on the host:
+
+- **Linux (native Docker Engine)**: the path is real, `sudo ls /var/lib/docker/volumes/<name>/_data`
+  works as shown above.
+- **macOS with Docker Desktop**: the data lives inside a VM disk image, so there is no Finder path.
+  Use the Docker Desktop GUI (Volumes tab lets you browse and export files), or enter the VM:
+
+  ```bash
+  docker run -it --rm --privileged --pid=host justincormack/nsenter1
+  # you are now inside the VM:
+  ls /var/lib/docker/volumes/<name>/_data
+  ```
+
+- **macOS with OrbStack**: OrbStack exposes the VM filesystem to Finder, so volumes are directly at
+  `~/OrbStack/docker/volumes/<name>/`.
+- **macOS with colima**: `colima ssh`, then `sudo ls /var/lib/docker/volumes/<name>/_data` inside
+  the VM.
+- **Windows with Docker Desktop (WSL2 backend)**: open in Explorer, depending on your Docker
+  Desktop version:
+
+  ```text
+  \\wsl$\docker-desktop-data\data\docker\volumes                       (older versions)
+  \\wsl$\docker-desktop\mnt\docker-desktop-disk\data\docker\volumes    (newer versions)
+  ```
+
+- **Windows with Docker Engine installed inside a WSL distro**: the data is inside that distro,
+  e.g. `\\wsl$\Ubuntu\var\lib\docker\volumes`.
+
+:::
+
+Doing a `cat` on the file we get the output below. The exact path depends on your OS (see the
+warning box above): on **Linux** it is the `Mountpoint` from `docker volume inspect`, so
+`sudo cat /var/lib/docker/volumes/<volume-name>/_data/ping.txt`; on **Windows** it is the `\\wsl$`
+path in Explorer (or the same `/var/lib/docker/...` path if you run Docker inside a WSL distro,
+since WSL is Linux); this example is from **macOS with OrbStack**, where the volume sits right in
+your home folder, no `sudo` needed:
 
 ```bash
 
-cristian@cristianson:~$ sudo cat  /var/lib/docker/volumes/a5ec5808eb58a6cc5551bd5f979f038f99015668f79314bec28ada192880d065/_data/ping.txt
+testing$ cat ~/OrbStack/docker/volumes/e95a6799435b2b33c2f8d2ec61ec17ab3d7dd25c28ef71de469fb87926e911ea/ping.txt 
 PING 8.8.8.8 (8.8.8.8): 56 data bytes
-64 bytes from 8.8.8.8: seq=0 ttl=57 time=20.006 ms
-64 bytes from 8.8.8.8: seq=1 ttl=57 time=20.352 ms
-64 bytes from 8.8.8.8: seq=2 ttl=57 time=18.195 ms
-64 bytes from 8.8.8.8: seq=3 ttl=57 time=18.668 ms
+64 bytes from 8.8.8.8: seq=0 ttl=111 time=64.463 ms
+64 bytes from 8.8.8.8: seq=1 ttl=111 time=63.274 ms
+64 bytes from 8.8.8.8: seq=2 ttl=111 time=63.388 ms
+64 bytes from 8.8.8.8: seq=3 ttl=111 time=63.646 ms
+64 bytes from 8.8.8.8: seq=4 ttl=111 time=62.394 ms
+64 bytes from 8.8.8.8: seq=5 ttl=111 time=63.054 ms
+64 bytes from 8.8.8.8: seq=6 ttl=111 time=62.651 ms
+64 bytes from 8.8.8.8: seq=7 ttl=111 time=64.966 ms
+64 bytes from 8.8.8.8: seq=8 ttl=111 time=63.276 ms
+64 bytes from 8.8.8.8: seq=9 ttl=111 time=60.692 ms
+64 bytes from 8.8.8.8: seq=10 ttl=111 time=62.603 ms
 
 ```
 
@@ -810,12 +834,19 @@ we see that the volume data is still intact, event though the container was dest
 
 ```bash
 
-cristian@cristianson:~$ sudo cat  /var/lib/docker/volumes/a5ec5808eb58a6cc5551bd5f979f038f99015668f79314bec28ada192880d065/_data/ping.txt
+testing$ cat ~/OrbStack/docker/volumes/e95a6799435b2b33c2f8d2ec61ec17ab3d7dd25c28ef71de469fb87926e911ea/ping.txt 
 PING 8.8.8.8 (8.8.8.8): 56 data bytes
-64 bytes from 8.8.8.8: seq=0 ttl=57 time=20.006 ms
-64 bytes from 8.8.8.8: seq=1 ttl=57 time=20.352 ms
-64 bytes from 8.8.8.8: seq=2 ttl=57 time=18.195 ms
-64 bytes from 8.8.8.8: seq=3 ttl=57 time=18.668 ms
+64 bytes from 8.8.8.8: seq=0 ttl=111 time=64.463 ms
+64 bytes from 8.8.8.8: seq=1 ttl=111 time=63.274 ms
+64 bytes from 8.8.8.8: seq=2 ttl=111 time=63.388 ms
+64 bytes from 8.8.8.8: seq=3 ttl=111 time=63.646 ms
+64 bytes from 8.8.8.8: seq=4 ttl=111 time=62.394 ms
+64 bytes from 8.8.8.8: seq=5 ttl=111 time=63.054 ms
+64 bytes from 8.8.8.8: seq=6 ttl=111 time=62.651 ms
+64 bytes from 8.8.8.8: seq=7 ttl=111 time=64.966 ms
+64 bytes from 8.8.8.8: seq=8 ttl=111 time=63.276 ms
+64 bytes from 8.8.8.8: seq=9 ttl=111 time=60.692 ms
+64 bytes from 8.8.8.8: seq=10 ttl=111 time=62.603 ms
 
 ```
 
@@ -840,36 +871,91 @@ We can add a bind mount to a container in a similar fashion, when we are creatin
 
 ```bash
 
-cristian@cristianson:~/Desktop/ipw-docker$ docker container run --name first -d --mount type=bind,source=/home/cristian/Desktop/ipw-docker/test.txt,target=/root/test.txt alpine sh -c 'ping 8.8.8.8 > /root/test.txt'
-8438bfb2f16d940770ed3e4ba48cb67428e78ff530ec73de859a5f168d36e8ab
-cristian@cristianson:~/Desktop/ipw-docker$ cat test.txt 
+testing$ docker container run --name first -d --mount type=bind,source=/Volumes/ssd2tb/ipw/testing/ping.txt,target=/root/ping.txt alpine sh -c 'ping 8.8.8.8 > /root/ping.txt'
+2bd4174be5554db0cb6f4204df68b3290ca94038347fa616f812c19f25a8e395
+testing$ cat ping.txt
 PING 8.8.8.8 (8.8.8.8): 56 data bytes
-64 bytes from 8.8.8.8: seq=0 ttl=57 time=21.369 ms
-64 bytes from 8.8.8.8: seq=1 ttl=57 time=20.204 ms
-64 bytes from 8.8.8.8: seq=2 ttl=57 time=20.705 ms
-64 bytes from 8.8.8.8: seq=3 ttl=57 time=18.625 ms
-64 bytes from 8.8.8.8: seq=4 ttl=57 time=20.626 ms
-64 bytes from 8.8.8.8: seq=5 ttl=57 time=20.248 ms
-64 bytes from 8.8.8.8: seq=6 ttl=57 time=18.777 ms
-cristian@cristianson:~/Desktop/ipw-docker$ docker container stop first
+64 bytes from 8.8.8.8: seq=0 ttl=111 time=59.500 ms
+64 bytes from 8.8.8.8: seq=1 ttl=111 time=59.656 ms
+64 bytes from 8.8.8.8: seq=2 ttl=111 time=63.486 ms
+64 bytes from 8.8.8.8: seq=3 ttl=111 time=62.149 ms
+64 bytes from 8.8.8.8: seq=4 ttl=111 time=62.620 ms
+64 bytes from 8.8.8.8: seq=5 ttl=111 time=58.470 ms
+64 bytes from 8.8.8.8: seq=6 ttl=111 time=59.493 ms
+64 bytes from 8.8.8.8: seq=7 ttl=111 time=58.334 ms
+64 bytes from 8.8.8.8: seq=8 ttl=111 time=60.148 ms
+64 bytes from 8.8.8.8: seq=9 ttl=111 time=58.879 ms
+64 bytes from 8.8.8.8: seq=10 ttl=111 time=63.309 ms
+64 bytes from 8.8.8.8: seq=11 ttl=111 time=61.285 ms
+64 bytes from 8.8.8.8: seq=12 ttl=111 time=59.424 ms
+64 bytes from 8.8.8.8: seq=13 ttl=111 time=58.130 ms
+64 bytes from 8.8.8.8: seq=14 ttl=111 time=58.794 ms
+64 bytes from 8.8.8.8: seq=15 ttl=111 time=62.338 ms
+64 bytes from 8.8.8.8: seq=16 ttl=111 time=63.404 ms
+testing$ docker container stop first
 first
-cristian@cristianson:~/Desktop/ipw-docker$ docker container rm first
+testing$ docker container rm first
 first
-cristian@cristianson:~/Desktop/ipw-docker$ cat test.txt 
+testing$ cat ping.txt               
 PING 8.8.8.8 (8.8.8.8): 56 data bytes
-64 bytes from 8.8.8.8: seq=0 ttl=57 time=21.369 ms
-64 bytes from 8.8.8.8: seq=1 ttl=57 time=20.204 ms
-64 bytes from 8.8.8.8: seq=2 ttl=57 time=20.705 ms
-64 bytes from 8.8.8.8: seq=3 ttl=57 time=18.625 ms
-64 bytes from 8.8.8.8: seq=4 ttl=57 time=20.626 ms
-64 bytes from 8.8.8.8: seq=5 ttl=57 time=20.248 ms
-64 bytes from 8.8.8.8: seq=6 ttl=57 time=18.777 ms
+64 bytes from 8.8.8.8: seq=0 ttl=111 time=59.500 ms
+64 bytes from 8.8.8.8: seq=1 ttl=111 time=59.656 ms
+64 bytes from 8.8.8.8: seq=2 ttl=111 time=63.486 ms
+64 bytes from 8.8.8.8: seq=3 ttl=111 time=62.149 ms
+64 bytes from 8.8.8.8: seq=4 ttl=111 time=62.620 ms
+64 bytes from 8.8.8.8: seq=5 ttl=111 time=58.470 ms
+64 bytes from 8.8.8.8: seq=6 ttl=111 time=59.493 ms
+64 bytes from 8.8.8.8: seq=7 ttl=111 time=58.334 ms
+64 bytes from 8.8.8.8: seq=8 ttl=111 time=60.148 ms
+64 bytes from 8.8.8.8: seq=9 ttl=111 time=58.879 ms
+64 bytes from 8.8.8.8: seq=10 ttl=111 time=63.309 ms
+64 bytes from 8.8.8.8: seq=11 ttl=111 time=61.285 ms
+64 bytes from 8.8.8.8: seq=12 ttl=111 time=59.424 ms
+64 bytes from 8.8.8.8: seq=13 ttl=111 time=58.130 ms
+64 bytes from 8.8.8.8: seq=14 ttl=111 time=58.794 ms
+64 bytes from 8.8.8.8: seq=15 ttl=111 time=62.338 ms
+64 bytes from 8.8.8.8: seq=16 ttl=111 time=63.404 ms
+64 bytes from 8.8.8.8: seq=17 ttl=111 time=62.814 ms
+64 bytes from 8.8.8.8: seq=18 ttl=111 time=59.909 ms
+64 bytes from 8.8.8.8: seq=19 ttl=111 time=63.479 ms
+64 bytes from 8.8.8.8: seq=20 ttl=111 time=63.331 ms
+64 bytes from 8.8.8.8: seq=21 ttl=111 time=58.099 ms
+64 bytes from 8.8.8.8: seq=22 ttl=111 time=67.067 ms
+64 bytes from 8.8.8.8: seq=23 ttl=111 time=58.947 ms
+64 bytes from 8.8.8.8: seq=24 ttl=111 time=62.170 ms
+64 bytes from 8.8.8.8: seq=25 ttl=111 time=62.545 ms
+64 bytes from 8.8.8.8: seq=26 ttl=111 time=62.965 ms
+64 bytes from 8.8.8.8: seq=27 ttl=111 time=64.499 ms
+64 bytes from 8.8.8.8: seq=28 ttl=111 time=58.626 ms
+64 bytes from 8.8.8.8: seq=29 ttl=111 time=58.853 ms
+64 bytes from 8.8.8.8: seq=30 ttl=111 time=59.763 ms
+64 bytes from 8.8.8.8: seq=31 ttl=111 time=57.901 ms
+64 bytes from 8.8.8.8: seq=32 ttl=111 time=59.385 ms
+64 bytes from 8.8.8.8: seq=33 ttl=111 time=60.341 ms
+64 bytes from 8.8.8.8: seq=34 ttl=111 time=62.991 ms
+64 bytes from 8.8.8.8: seq=35 ttl=111 time=61.916 ms
+64 bytes from 8.8.8.8: seq=36 ttl=111 time=63.404 ms
+64 bytes from 8.8.8.8: seq=37 ttl=111 time=62.129 ms
+64 bytes from 8.8.8.8: seq=38 ttl=111 time=63.078 ms
+64 bytes from 8.8.8.8: seq=39 ttl=111 time=62.141 ms
 
 ```
 
 This is a lot to take in, so let's break it down. We are creating a mount by specifying the `--mount`
 argument, of `type=bind`, we specify the source file from the host system that we want to share with
 our container, and the target file in the container, which does not necessarily need to exist.
+
+:::info
+
+Two practical notes. First, with `--mount type=bind` the **source** path must already exist on the
+host, otherwise Docker refuses to start the container (the older `-v` syntax would silently create
+a directory instead - a classic source of confusion). So create the file first, e.g.
+`touch ping.txt`, and use your own path as `source=` - the one above is from the instructor's
+machine. Second, on Windows and macOS with Docker Desktop, the source must be under a folder that
+is shared with Docker (Settings → Resources → File sharing; on macOS `/Users` and `/Volumes` are
+shared by default).
+
+:::
 
 We see that the running ping command outputs into the file on our local system, and even if we delete
 the container and remove it, the data persists.

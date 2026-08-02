@@ -45,31 +45,17 @@ Above picture taken from [Medium](https://medium.com/@basecs101/understanding-do
 
 If you get stuck or do not know what steps need to be taken, please ask the course instructors to
 help you. It is very important that you have your Docker engine properly set-up as this is the basis
-for the Kubernetes tutorial, also.
+for the Swarm/orchestration chapters, also.
 
 ## Overview of docker concepts that will be discussed in this course
 
-- Containers
-- Images
-- Dockerfile
-- Docker Hub
-- Docker Compose
-- Volumes
-- Networks
-- Docker Registry
-- Container orchestration (basic concept)
-- Multi-stage builds
-- Docker security best practices
-- Docker CLI commands
-- Container lifecycle management
-- Image layering and caching
-- Environment variables in Docker
+- Containers and images (and the difference between them)
+- The Docker CLI and the container lifecycle
+- Dockerfile: building your own images, layering and caching
+- Environment variables and build arguments
+- Networks and container-to-container communication
 - Port mapping and exposure
-- Docker logging and monitoring
-- Container resource management (CPU, memory limits)
-- Docker healthchecks
-- Docker build context
-- Docker image tagging strategies
-- Docker networking modes
-- Docker storage drivers
-- Containerization of different application types (web, database, etc.)
+- Volumes and bind mounts (persisting data)
+- Docker Compose: multi-container applications
+- Registries and Docker Hub: publishing your images
+- Container orchestration with Docker Swarm (services, scaling, rolling updates)
