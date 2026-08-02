@@ -296,32 +296,7 @@ Remember that LEDs are wired so they light up on `Level::Low` and turn off on `L
 Please make sure the lab professor verifies your circuit before it is powered up.
 :::
 
-1. Write a program using Embassy that adjusts the brightness of an LED connected to GPIO pin by changing the PWM duty cycle. 
-    - Light up the LED at 25% intensity. (**1p**)
-    - Make the LED change intensity from 0% to 100% in 10% increments every 1 second. (**1p**)
-
-:::info
-Embassy will reset all the peripherals when the `main` function exits, that means `PWM` and `ADC` will stop. Make sure the `main` function never exits so you can see how the circuit behaves.
-:::
-
-:::tip
-
-The LEDs on the lab board are active‑low. This means they turn ON when the pin is driven LOW and turn OFF when the pin is driven HIGH.
-
-Because of this wiring, using PWM directly will have the inverse effect:
-
-- A 0% duty cycle (always LOW) → LED fully ON
-- A 100% duty cycle (always HIGH) → LED fully OFF
-
-To make the duty cycle behave intuitively (so that a higher percentage means “brighter”), you must explicitly set the channel polarity to ActiveLow:
-
-```rust
-channel.set_polarity(OutputPolarity::ActiveLow);
-```
-
-:::
-
-2. Write a program using Embassy to control the led intensity using a potentiometer. The potentiometer is connected to an ADC-capable GPIO pin. The LED should change intensity based on the potentiometer's position. (**2p**) 
+1. Write a program using Embassy to control the led intensity using a potentiometer. The potentiometer is connected to an ADC-capable GPIO pin. The LED should change intensity based on the potentiometer's position. (**2p**) 
 
 :::warning 
 Unlike the photoresistor, which requires an external resistor to form a voltage divider, a potentiometer already has an internal voltage divider. You only need to connect its three pins:
@@ -332,12 +307,12 @@ Unlike the photoresistor, which requires an external resistor to form a voltage 
     (The potentiometer that the board provides is signaled with label `POTENTIOMETER` in the connectors section.)
 :::
 
-3. Make the RGB LED switch from red -> yellow -> blue every time the button `S4` is pressed. (**2p**)
+2. Make the RGB LED switch from red -> yellow -> blue every time the button `S4` is pressed. (**2p**)
 
 ![Colors](images/colors.png)
 
-4. Write a program using Embassy that measures light intensity using a photoresistor connected to ADC.
+3. Write a program using Embassy that measures light intensity using a photoresistor connected to ADC.
     - Use `defmt` to display the measured light intensity. (**1p**)
     - Make the RGB LED change color based on the light intensity. Red for low intensity, green for medium intensity, and blue for high intensity. (**1p**)
 
-5. Write a program using Embassy that moves a servo motor smoothly between 0° and 180°, then back to 0°, in a continuous loop. (**2p**)
+
