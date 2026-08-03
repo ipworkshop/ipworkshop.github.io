@@ -1,0 +1,9 @@
+{
+    "position": 8,
+    "label": "Workshops",
+    "collapsible": true,
+    "collapsed": true,
+    "customProps": {
+        "description": "Common workshops for all tracks"
+    }
+}
