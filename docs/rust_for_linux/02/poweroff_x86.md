@@ -1,0 +1,99 @@
+# x86_64 Poweroff
+
+:::info
+This driver works only on x86_64.
+:::
+
+We will build a driver that powers off QEMU.
+
+##  Power Off
+
+QEMU provides a virtual peripheral called ISA Debug Exit that maps an IO port. Writing a numeric value to this port
+will power off QEMU and return the value as an error code.
+
+Attaching this device to QEMU is done by adding `-device isa-debug-exit,iobase=0x10f4,iosize=0x04` to the command line.
+In this example, the debug device is mapped on port `0x10f4` and is 4 bytes long.
+
+## Simple Power Off Driver
+
+The simplest driver that we can write is one that power off QEMU when it is loaded. 
+We need to:
+- reserve the port
+- write to it using x86 assembly
+
+### Reserving the port region
+
+:::note
+The Kernel Rust API does not have (yet) and safe abstraction to reserve a port. This means that
+we have to use the C binding directly,
+:::
+
+```rust
+unsafe { bindings::request_region(start, len, name.as_char_ptr()) }
+```
+
+- `start` is the port number
+- `len` is the gthe length of the port
+- `name` is a name that will be displayed in `/proc/ioports` and is a C string `char*`
+
+The function return `NULL` if the port mapping fails. In Rust, we can use the `.is_null()` function 
+to check if the port reservation worked.
+
+### Writing to the port
+
+Writing to the IO port is done using inline assembly. There are two possible syntaxes:
+
+#### Kernel AT&T Syntax
+
+```rust
+// kernel API
+use kernel::asm;
+unsafe {
+    asm!("
+            outb %al, %dx
+        ";
+        in("dx") port as u16, 
+        in("al") value as u8,
+        options(noreturn)
+    );
+}
+```
+
+#### Intel Syntax
+
+```rust
+// core API
+use core::arch::asm;
+unsafe {
+    asm!("
+            out dx, al 
+        ",
+        in("dx") port as u16, 
+        in("al") value as u8,
+        options(intel_syntax, noreturn)
+    );
+}
+```
+
+:::warning
+The kernel does not forbid writing to a port without reserving it, but this is bad practice, 
+as we might override another driver's ports. if we cannot reserve a port, we just back off
+and fail to load the driver returning a `EBUSY` error.
+:::
+
+### Releasing the port region
+
+If we have reserved a port region, we must make sure to release it when we do not need it anymore
+or when we unload the driver.
+
+```rust
+unsafe { bindings::release_region(start, len); }
+```
+
+## Exercises
+
+1. Write an empty module called `PowerOff`
+2. Reserve the `0x10f4` port with 4 bytes long in the `Module::init` function. 
+  - Print the contents of `/proc/ioports` to see if your port has been reserved
+  - Try reserving a port that already exists and fail to initialize the module
+3. Release the `0x10f4` port with 4 bytes long in the `Drop::drop` function.
