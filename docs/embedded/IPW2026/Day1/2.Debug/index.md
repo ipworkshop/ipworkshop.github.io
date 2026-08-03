@@ -7,6 +7,14 @@ position: 0
 
 This lab will teach you how to debug and run programs written in Rust and [embassy](https://embassy.dev) on the STM32 Nucleo-U545RE-Q board.
 
+## IMPORTANT!
+
+- Link to solution:
+  https://github.com/UPB-PMRust/lab-solutions/blob/main/lab01/src/main.rs
+  (strictly in the lab01 folder)
+- Link to skeleton from the next course onwards:
+  https://github.com/ipworkshop/ipw2026-embedded-schelet
+
 ## Concepts
 
 - How to debug a microcontroller's firmware
