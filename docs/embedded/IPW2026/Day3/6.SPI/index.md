@@ -103,14 +103,14 @@ For example, if main wants to communicate with the second sub, it will:
 - at the end of the chain, the last sub will send the data back to the main device through the `MISO` line
 
 ## DMA
-When it comes to standard communication protocols that rely on [MMIO](../lecture/02), it would be inefficient to rely on the MCU itself to handle all of these data transfers. This is why the **Direct Memory Access** (DMA) is used. Its purpose is to offload the MCU by dealing with simple transmission to and from peripherals, and whenever it finishes a transfer, it raises an interrupt.
+When it comes to standard communication protocols that rely on MMIO, it would be inefficient to rely on the MCU itself to handle all of these data transfers. This is why the **Direct Memory Access** (DMA) is used. Its purpose is to offload the MCU by dealing with simple transmission to and from peripherals, and whenever it finishes a transfer, it raises an interrupt.
 
 ## SPI in Embassy
 
 In Embassy, we can use the SPI both blocking and asynchronously. The following example will be using the asynchronous version.
 
 :::warning
-The SPI can also be used synchronously, but this means that for every transfer, all tasks will be blocked, as we found out in the [previous lab](./04).
+The SPI can also be used synchronously, but this means that for every transfer, all tasks will be blocked.
 :::
 
 <Tabs>
@@ -145,7 +145,7 @@ let mut spi = Spi::new(p.SPI1, clk, mosi, miso, p.GPDMA1_CH0, p.GPDMA1_CH1, conf
 ```
 
 :::info
-To figure out which pins work with SPI and what channels they are associated with, you need to take a look at the [pinout](./05#board-pinouts) of the STM32 Nucleo-U545RE-Q.
+To figure out which pins work with SPI and what channels they are associated with, you need to take a look at the [pinout](#board-pinouts) of the STM32 Nucleo-U545RE-Q.
 :::
 
 We also need a `CS` pin, that is simply a GPIO output pin. We will initialize it as such. Any pin can be used. For multiple subs, multiple pins will be initialized. 
