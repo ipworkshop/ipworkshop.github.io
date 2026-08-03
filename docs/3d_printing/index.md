@@ -9,18 +9,29 @@ The Workshop is dedicated to all participants & you do not need prior knowledge,
 
 # 3D Models
 
-Before the beginning of the class, please install the following software:
+During the workshop you will learn about:
+
+- How 3D printing works
+- What the slicer is and how to use it
+- How to 3D model a simple object
+
+
+# Before the beginning of the class
+
+Please install the following software before the first workshop:
+
 - Prusa Slicer: [https://www.prusa3d.com/p/prusaslicer/](https://www.prusa3d.com/p/prusaslicer/)
 <div style="text-align:center;"><img width="750" height="218" alt="prusa slicer logo" src="https://github.com/user-attachments/assets/23a4edf4-3fa9-4983-ae17-1bdb1eecde72" /></div>
 
 <br><br>
 - Fusion 360 - Free Version (NOT 30 days trial, but the free version, available with an Autodesk account that is also free to create)<br>
-[https://www.autodesk.com/campaigns/fusion-360/download](https://www.autodesk.com/campaigns/fusion-360/download)
+[https://www.autodesk.com/products/fusion-360/overview](https://www.autodesk.com/products/fusion-360/overview)
 
 [<img width="1900" height="1048" alt="create an autodesk account" src="https://github.com/user-attachments/assets/d37ac1ba-b4fc-4db9-8cab-7aa71ce3002d" />](https://www.autodesk.com)
 <br><br>
-[<img width="1900" height="1062" align="center" alt="install the free version" src="https://github.com/user-attachments/assets/1de63122-b218-4c60-8600-e361bd7a616a" />](https://www.autodesk.com/campaigns/fusion-360/download)
+[<img width="1900" height="1012" alt="install the free version" src="https://github.com/user-attachments/assets/882ab916-7368-4a5e-863b-28c1cb6f0f94" />](https://www.autodesk.com/products/fusion-360/overview)
 
+You only need to have the software install, we will configure them together. 
 
-
+See you in class!
 
