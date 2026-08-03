@@ -200,7 +200,7 @@ build/empty.ko: ELF 64-bit LSB relocatable, x86-64, version 1 (SYSV), BuildID[sh
 
 To load the module into the kernel we have to perform the following steps:
 1. copy the `empty.ko` in to `$INIT_RAM_FS`
-2. [rebuild the RAM disk](./01#build-ram-disk) so that it includes the module
+2. [rebuild the RAM disk](../01#build-ram-disk) so that it includes the module
 3. Boot the kernel
 
 The module will not be automatically loaded by the kernel, we have to load it manually using the `insmod` command.
@@ -577,7 +577,7 @@ After the debugger starts, run `lx-symbols` in the console to ask `gdb` to read 
 5. Place breakpoints on the `Module::init` function and step through it.
 6. Store the current process in a variable and inspect it with the debugger.
 7. Place a breakpoint on the `Drop::drop` function and step through it.
-8. Write a `poweroff` driver that stops the virtual machine. Make sure you read the documentation for [`x86_64`](02/poweroff_x86) or [`arm64`](02/poweroff_arm64) depeding on your developmenrt platform.
+8. Write a `poweroff` driver that stops the virtual machine. Make sure you read the documentation for [`x86_64`](./poweroff_x86) or [`arm64`](./poweroff_arm64) depeding on your developmenrt platform.
 
 
 ## Bonus
