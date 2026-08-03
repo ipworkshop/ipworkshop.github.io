@@ -94,22 +94,22 @@ $ sudo dnf install -y qemu-system-aarch64
 
 ```shell
 # Update the package library
-$ sudo pacman -Syu --noconfirm
+$ sudo pacman -Syu --noconfirm --needed
 
 # Kernel Compilation
-$ sudo pacman -S --noconfirm base-devel gcc xmlto kmod inetutils bc libelf git cpio perl tar xz
+$ sudo pacman -S --noconfirm --needed base-devel gcc xmlto kmod inetutils bc libelf git cpio perl tar xz
 
 # BusyBox Compilation
-$ sudo pacman -S --noconfirm glibc
+$ sudo pacman -S --noconfirm --needed glibc
 
 # Debug
-$ sudo pacman -S --noconfirm gdb
+$ sudo pacman -S --noconfirm --needed gdb
 
 # Install QEMU x86
-$ sudo pacman -S --noconfirm qemu-system-x86
+$ sudo pacman -S --noconfirm --needed qemu-system-x86
 
 #Install QEMU for ARM64
-$ sudo pacman -S --noconfirm qemu-system-aarch64
+$ sudo pacman -S --noconfirm --needed qemu-system-aarch64
 ```
 
 </TabItem>
