@@ -1,0 +1,587 @@
+# 02 - Kernel Module
+
+import Tabs from '@theme/Tabs';
+import TabItem from '@theme/TabItem';
+
+The first exercise is to write an empty  module. The module will print a message when it loads and 
+a message when it is unloaded.
+
+## Tree Structure
+
+Kernel modules are split into two categories:
+- *in tree* - modules that reside within the kernel's source code tree
+- *out of tree* - modules that are built outside the kernel
+
+We will build out of tree modules. The folder structure of a kernel module is different from
+the one of a program. The kernel uses its own tools to build the module, while applications
+use `cargo`. The kernel uses `make` and `Kbuild`.
+
+### Kbuild File
+
+The `Kbuild` file defines the object files that the module provides. 
+In our case, the object file will be called `empty.o`.
+
+```makefile
+# SPDX-License-Identifier: GPL-2.0
+
+obj-m := empty.o
+```
+
+### Makefile
+
+We need to use a special `makefile` that connects to the kernel's source build infrastructure.
+
+```makefile
+# SPDX-License-Identifier: GPL-2.0
+
+KDIR ?= /lib/modules/`uname -r`/build
+
+default:
+	echo $$RUSTFLAGS
+	$(MAKE) -C $(KDIR) LLVM=1 M=$$PWD MO=$$PWD/build
+
+clean:
+	$(MAKE) -C $(KDIR) M=$$PWD MO=$$PWD/build clean
+
+rust-analyzer:
+	$(MAKE) -C $(KDIR) M=$$PWD rust-analyzer
+
+```
+
+This `makefile` defines three important targets:
+- `default` - that build the module
+- `clean` - that cleans the module
+- `rust-analyzer` - that build the `rust-project.json` file used by [rust-analyzer](https://rust-analyzer.github.io/).
+
+The `makefile` assumes that we will set the `$KDIR` variable to point to the kernel's soutrce code. In our case, this 
+variable will be similar to `../linux-6.18-rc5/`.
+
+:::warning
+
+Please make sure you export this variable before running any `make` targets.
+
+```shell
+export KDIR="../linux-6.18-rc5"
+```
+
+You can allways define the variable in the `make` command line: `make KDIR=../linux-6.18-rc5 ...`. 
+
+The `KRUSTFLAGS` 
+
+:::
+
+### Source Code
+
+The main source code file of our module is `empty.rs`. It has to have the same name ast the object file defined in
+`KBuild`.
+
+
+```rust
+```
+
+#### Path Remap
+
+We need to ask the rust compiler to rewrite the file names that start with `../` to `./`
+when dispaying errors, warnings and notes.
+
+This is needed as we use the `./build` folder for compiling and the compiler
+considers the source files to be in ../
+
+Usually this is done by adding a rust compilation flag using the `KRUSTFLAGS` environment variable.
+
+```makefile
+export KRUSTFLAGS := --remap-path-prefix=../=
+```
+
+:::alert
+Starting with new kernel versions, the `--remap-path-prefix=../=` is already set in the kernel's Makefile.
+The issue is that the flag is applied only to macros. We have to patch the kernel's main Makefile and change
+this.
+:::
+
+In the kernel's main Makefile, we have to make sure that these lines exists:
+
+```Makefile
+ifeq ($(call rustc-option-yn, --remap-path-scope=macro,diagnosgtics),y)
+KBUILD_RUSTFLAGS += --remap-path-prefix=$(srcroot)/= --remap-path-scope=macro,diagnostics
+endif
+```
+
+
+### Enabling Rust Analyzer
+
+To help us with code completion, we want to activate rust-analyzer. As this is not a standard rust application,
+we have to run `make rust-analyzer` to obtgain the `rust-project.json` file which rust-analyzer can use
+instead of `Cargo.toml`.
+
+:::alert
+The `rust-analyzer` target creates the `rust-project.json` in the `build` folder instead of the
+module's source folder. This prvents `rust-analyzer` from finding it.
+
+Move the `rust-project.json` outside the `build` folder, next to the `makefile`.
+:::
+
+:::alert
+The `rust-project.json` wrongly defines the path of the module's main source file (in this 
+case `empty.rs`). Please modify the `root-module` of `emoty` in `rust-project.json` from
+
+```json
+"root_module": "../empty.rs"
+```
+
+to
+
+```json
+"root_module": "empty.rs"
+```
+:::
+
+## The Module
+
+Printing to the kernel console is done using the `pr_*` macros such as
+[`pr_info!`](https://rust.docs.kernel.org/kernel/macro.pr_info.html), 
+[`pr_error!`](https://rust.docs.kernel.org/kernel/macro.pr_error.html),
+[`pr_warn!`](https://rust.docs.kernel.org/kernel/macro.pr_warn.html),
+[`pr_debug!`](https://rust.docs.kernel.org/kernel/macro.pr_debug.html) and 
+[`pr_alert`](https://rust.docs.kernel.org/kernel/macro.pr_alert.html),
+
+A module is declared using the [`module!`](https://rust.docs.kernel.org/macros/macro.module.html) macro. It defines
+the name, authors, description and the license of the module and the data type that implements the `Module` and `Drop`
+trais. In this exmple, this is the `Empty` type.
+
+The `Module::init` function may return an [`Error`](https://rust.docs.kernel.org/kernel/error/struct.Error.html) [code](https://rust.docs.kernel.org/kernel/error/code/index.html) if the module cannot be loaded. The kernel will try several times
+and print the error if it still fails.
+
+```rust
+// SPDX-License-Identifier: GPL-2.0
+
+//! Rust Empty Module
+
+use kernel::prelude::*;
+
+module! {
+    type: Empty,
+    name: "empty",
+    authors: ["Rust Workshop"],
+    description: "Rust empty sample",
+    license: "GPL",
+}
+
+struct Empty;
+
+impl kernel::Module for Empty {
+    fn init(_module: &'static ThisModule) -> Result<Self> {
+        pr_info!("Empty Module (init)\n");
+
+        Ok(Empty)
+    }
+}
+
+impl Drop for Empty {
+    fn drop(&mut self) {
+        pr_info!("Empty Module (exit)\n");
+    }
+}
+```
+
+## Build the module
+
+To build the module we use the `make` command. This will build all the Rust code and all the necessary C glue code 
+and output the kernel object file `build/empty.ko`. This is actually a static relocatable ELF file.
+
+```shelll
+$ file build/empty.ko
+build/empty.ko: ELF 64-bit LSB relocatable, x86-64, version 1 (SYSV), BuildID[sha1]=b451eeb137ea43d0abda65ee315a5dd545d46e50, with debug_info, not stripped
+```
+
+## Loading the module
+
+### Loading
+
+To load the module into the kernel we have to perform the following steps:
+1. copy the `empty.ko` in to `$INIT_RAM_FS`
+2. [rebuild the RAM disk](./01#build-ram-disk) so that it includes the module
+3. Boot the kernel
+
+The module will not be automatically loaded by the kernel, we have to load it manually using the `insmod` command.
+
+```shell
+$ insmod empty.ko 
+empty: loading out-of-tree module taints kernel.
+empty: Empty Module (init)
+
+```
+
+If everything works, we should see the module's init message.
+
+We can see the loaded module using `lsmod` to list all the kernel modules.
+
+```bash
+$ lsmod
+empty 12288 0 - Live 0xffffffffa0000000 (O)
+```
+
+We can see here the address at which the module is loaded.
+
+### Unloading the module
+
+Unloading a module is done by using the `rmmod` command. It receives one single parameter that is the name 
+of the module (without the `.ko` extension). 
+
+```rust
+$ rmmod empty
+empty: Empty Module (exit)
+```
+
+We should see the `drop` message.
+
+## Module Parameters
+
+Modules can receive parameters from the command line when loaded.
+
+Parameters are defined in the `module!` macro using the `params` filed.
+
+```rust
+module! {
+    // ...
+    params: {
+        first_param: u8 {
+            default: 1,
+            description: "This parameter has a default of 1",
+        },
+    },
+}
+```
+
+To read the value of a parameter, use
+
+```rust
+module_parameters::first_param.value()
+``` 
+
+where `first_param` is the name of the parameter.
+
+Parameter values are assigned values when the module is loaded with `insmod`. The synatx is: 
+
+```shell
+$ insmod module.ko parameter_1=value parameter_2=value ...
+```
+
+## Run Script
+
+Every time we change the module, we have to perform the following steps:
+
+1. Build the module
+2. Copy the driver to `$INIT_RAM_FS`
+3. Rebuild the RAM disk
+4. Run QEMU with the new RAM disk
+5. Load the module
+
+We can use a `run.sh` script like the following placed in the module's folder to automate this:
+
+<Tabs>
+
+<TabItem value="x86" label="x86_64">
+
+```bash
+#!/bin/sh
+
+MODULE=empty.ko
+BUILD_DIR="$(pwd)/build"
+
+set -e
+
+if [ -z $KDIR ]; then
+    echo "Kernel folder not set, use export KDIR=..."
+    exit 1
+fi
+
+if [ -z $INIT_RAM_FS ]; then
+    echo "initramfs folder not set, use export INIT_RAM_FS=..."
+    ecit 1
+fi
+
+echo "Building module"
+make
+
+echo "Kernel folder $KDIR"
+echo "initramfs folder $INIT_RAM_FS"
+
+KVERSION=$(cd "$KDIR" && make kernelversion)
+
+echo "Kernel version $KVERSION"
+
+echo "Copying driver"
+MODULES_DIR="$INIT_RAM_FS/lib/modules/$KVERSION"
+mkdir -p "$MODULES_DIR"
+cp build/empty.ko "$MODULES_DIR"
+
+echo "Compressing initramfs"
+(cd "$INIT_RAM_FS" && find . -print0 | cpio --null -ov --format=newc | gzip -9 > "$BUILD_DIR/initramfs.cpio.gz")
+
+echo "Running QEMU"
+qemu-system-x86_64 -nographic \
+                   -kernel "$KDIR/arch/x86_64/boot/bzImage" \
+                   -initrd build/initramfs.cpio.gz \
+                   -append "console=ttyS0" \
+                   -s
+```
+
+</TabItem>
+
+<TabItem value="arm64" label="ARM64">
+
+```bash
+#!/bin/sh
+
+MODULE=empty.ko
+BUILD_DIR="$(pwd)/build"
+
+set -e
+
+if [ -z $KDIR ]; then
+    echo "Kernel folder not set, use export KDIR=..."
+    exit 1
+fi
+
+if [ -z $INIT_RAM_FS ]; then
+    echo "initramfs folder not set, use export INIT_RAM_FS=..."
+    ecit 1
+fi
+
+echo "Building module"
+make
+
+echo "Kernel folder $KDIR"
+echo "initramfs folder $INIT_RAM_FS"
+
+KVERSION=$(cd "$KDIR" && make kernelversion)
+
+echo "Kernel version $KVERSION"
+
+echo "Copying driver"
+MODULES_DIR="$INIT_RAM_FS/lib/modules/$KVERSION"
+mkdir -p "$MODULES_DIR"
+cp build/empty.ko "$MODULES_DIR"
+
+echo "Compressing initramfs"
+(cd "$INIT_RAM_FS" && find . -print0 | cpio --null -ov --format=newc | gzip -9 > "$BUILD_DIR/initramfs.cpio.gz")
+
+echo "Running QEMU"
+qemu-system-aarch64 -machine virt \
+                    -cpu cortex-a53 \
+                    -smp 1 \
+                    -m 512M \
+                    -nographic \
+                    -kernel "$KDIR/arch/arm64/boot/Image" \
+                    -initrd build/initramfs.cpio.gz \
+                    -append "earlyprintk=serial,ttyAMA0 console=ttyAMA0 debug" \
+                    -s
+```
+
+</TabItem>
+
+</Tabs>
+
+:::note
+Make sure to export both `$KDIR` and `$INIT_RAM_FS` variables before running the script.
+:::
+
+The script will place the module in `/lib//lib/modules/<kernel_version>/` folder so that we 
+can use `modprobe module_name` to load the module. 
+
+## Debug
+
+Writing kernel modules is difficult as they run within the kernel and an error in the module might result in a kernel OOPS or panic.
+The kernel exposes several tools for debugging. The mechanisms are very similar to hardware debuggers.
+
+### Kernel Configuration
+
+To use debuggers, we have to enable kernel debugging components.
+
+:::note
+These components should not be enabled in production builds, as they expose kernel objects that can be used to exploit it.
+:::
+
+We have to run `make menuconfig` and select the following components:
+
+```text
+- Kernel hacking
+  - Kernel Debugging
+  - Debug information -> Rely on the toolchain's implicit default DWARF version
+  - Compile-time checks and compiler options
+    - Provide GDB scripts for kernel debugging
+    - Compile the kernel with frame pointers
+    - Reduce debugging information (DISABLE)
+```
+
+### Run QEMU with debug server
+
+We use the `-s` parameter to enable QEMU's `gdb` server. This allows `gdb` to connect to it and debug the running kernel.
+
+<Tabs>
+
+<TabItem value="x86" label="x86_64">
+
+```bash
+$ qemu-system-x86_64 -nographic \
+                     -kernel "$KDIR/arch/x86_64/boot/bzImage" \
+                     -initrd build/initramfs.cpio.gz \
+                     -append "earlyprintk=serial,ttyS0 console=ttyS0" \
+                     -s
+```
+
+</TabItem>
+
+<TabItem value="arm64" label="ARM64">
+
+```bash
+$ qemu-system-aarch64 -machine virt \
+                      -cpu cortex-a53 \
+                      -smp 1 \
+                      -m 512M \
+                      -nographic \
+                      -kernel arch/arm64/boot/Image \
+                      -initrd build/initramfs.cpio.gz \
+                      -append "earlyprintk=serial,ttyAMA0 console=ttyAMA0 debug"
+                      -s
+```
+
+</TabItem>
+
+</Tabs>
+
+QEMU will start the `gdb` server on `127.0.0.1:1234`.
+
+ 
+### Enable GDB Scrips
+
+The kernel provides gdb scripts that add several commands to retrieve symbols. These need to be loaded by
+gdb at startup. The scripts are located in the kernel's folder in `scripts/gdb`.
+
+:::danger
+
+For security reasons, `gdb` will prfevent loading of arbitrary scriptys unless they are specifically named
+in `~/.config/gdb/gdbinit`. Please add the following line for everfy kernel folder (`current` and `next`)
+that you use.
+
+```gdb
+add-auto-load-safe-path $KDIR/scripts/gdb/vmlinux-gdb.py         
+```
+
+Replace `$KDIR` with the path to the kernel directory
+:::
+
+### Debugger Configuration
+
+We have to instruct the Rust compiler to include debug information and not to optimzie code. This is done
+by setting adding to the `$KRUSTFLAGS` in the `Makefile` the `-g -C opt-level=0`.
+
+```makefile
+export KRUSTFLAGS := -g -C opt-level=0
+```
+
+Failure to add these settings will make debugging unreliable.
+
+<Tabs>
+
+<TabItem value="gdb" label="GDB">
+
+The simples way to debug the kernel is using `gdb` directly. Make sure you have booted the kernel in a 
+QEMU session that has the `-s` argument.
+
+In your module's folder run:
+
+```bash
+$ gdb -ex "target remote :1234" -ex "lx-symbols"  $KDIR/vmlinux -tui
+```
+
+This will start `gdb` and: 
+1. connect to the `127.0.0.1:1234` `gdb` server 
+2. run `lx-symbols` to load the kernel symbols
+3. start the TUI and display the kernel's code
+
+:::tip
+If `gdb` errors saying that `lx-symbols` is not available, please make sure you have added the `gdb` kernel
+scripts to `~/.config/gdb/gdbinit`.
+:::
+
+</TabItem>
+
+<TabItem value="vscode" label="Visual Studio Code">
+
+
+Edit the `.vscode/launch.json` file. The `program` field points to the `vmlinux` file in the kernel folder.
+
+:::danger
+Please make sure to replace `KDIR` with the actual path of the kernel. Visual Studio Code's `launch.json`
+does not recognize the `$KDIR` environment variable.
+:::
+
+```json
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Debug Linux Kernel with GDB",
+      "type": "cppdbg",
+      "request": "launch",
+      "program": "$KDIR/vmlinux",
+      "cwd": "${workspaceFolder}",
+      "miDebuggerPath": "/usr/bin/gdb",
+      "MIMode": "gdb",
+      "externalConsole": true,
+      "miDebuggerServerAddress": "127.0.0.1:1234"
+    }
+  ]
+}
+```
+
+After the debugger starts, run `-exec lx-symbols` in the console to ask `gdb` to read the symbols.
+
+</TabItem>
+
+<TabItem value="zed" label="Zed">
+
+Edit the `.zed/debug.json` file. The `program` filed points to the `vmlinux` file in the kernel folder.
+
+:::danger
+Please make sure to replace `KDIR` with the actual path of the kernel. Zed's `debug.json`
+does not recognize the `$KDIR` environment variable.
+:::
+
+```json
+[
+  {
+    "label": "Attach GDB",
+    "adapter": "GDB",
+    "request": "attach",
+    "program": "$KDIR/linux-7.1.5/vmlinux",
+    "cwd": "$ZED_WORKTREE_ROOT",
+    "target": "127.0.0.1:1234"
+  }
+]
+```
+After the debugger starts, run `lx-symbols` in the console to ask `gdb` to read the symbols.
+
+</TabItem>
+
+</Tabs>
+
+## Exercises
+
+1. Modify the `Module::init` function to return an `Error`. Try loading the module with different errors and see what the kernel prints.
+2. Modify the module to print several types of messages using different `pr_*` and see what the kernel prints.
+3. Print the current process PID, current CPU ID and current user ID in the `Module::init` function. (Hint: use the [`current!`](https://rust.docs.kernel.org/kernel/macro.current.html) macro and the [`Task`](https://rust.docs.kernel.org/kernel/task/struct.Task.html#method.current) structure.
+4. Add two `u8` parameters to the module and print their sum in the init message.
+5. Place breakpoints on the `Module::init` function and step through it.
+6. Store the current process in a variable and inspect it with the debugger.
+7. Place a breakpoint on the `Drop::drop` function and step through it.
+8. Write a `poweroff` driver that stops the virtual machine. Make sure you read the documentation for [`x86_64`](02/poweroff_x86) or [`arm64`](02/poweroff_arm64) depeding on your developmenrt platform.
+
+
+## Bonus
+Add two `u8` parameters to the module and print their sum in the init message. Make sure you:
+- boot the `next` version of the kernel 
+- set the correct `$KDIR` path to the `next` version of the kernel
+- run `make rust-analyzer` with the correct `$KDIR` path pointing to the next version of the kernel
