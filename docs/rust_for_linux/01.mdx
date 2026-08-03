@@ -31,7 +31,7 @@ $ rustup component add rust-src
 $ sudo apt-get update
 
 # Kernel Compilation
-$ sudo apt-get install -y build-essential cpio git libncurses-dev llvm clang flex bison lld libelf-dev bindgen bc lld
+$ sudo apt-get install -y build-essential cpio git libncurses-dev llvm clang flex bison lld libelf-dev bindgen
 
 # Debug
 $ sudo apt-get install -y gdb
@@ -90,14 +90,14 @@ $ sudo dnf install -y qemu-system-aarch64
 
 </TabItem>
 
-<TabItem value="arch" label="Fedora 43">
+<TabItem value="arch" label="Arch Linux">
 
 ```shell
 # Update the package library
 $ sudo pacman -Syu --noconfirm --needed
 
 # Kernel Compilation
-$ sudo pacman -S --noconfirm --needed base-devel gcc inetutils libelf git cpio perl tar xz rust-bindgen
+$ sudo pacman -S --noconfirm --needed base-devel gcc inetutils libelf git cpio perl tar xz rust-bindgen bc lld llvm
 
 # BusyBox Compilation
 $ sudo pacman -S --noconfirm --needed glibc
