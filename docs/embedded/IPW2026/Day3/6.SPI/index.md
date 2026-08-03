@@ -193,7 +193,7 @@ let mut spi = Spi::new(p.SPI0, clk, mosi, miso, p.DMA_CH0, p.DMA_CH1, config);
 ```
 
 :::info
-To figure out which pins work with SPI and what channels they are associated with, you need to take a look at the [pinout](./05#board-pinouts) of the Raspberry Pi Pico.
+To figure out which pins work with SPI and what channels they are associated with, you need to take a look at the [pinout](#board-pinouts) of the Raspberry Pi Pico.
 :::
 
 We also need a `CS` pin, that is simply a GPIO output pin. We will initialize it as such. Any pin can be used. For multiple subs, multiple pins will be initialized. 
