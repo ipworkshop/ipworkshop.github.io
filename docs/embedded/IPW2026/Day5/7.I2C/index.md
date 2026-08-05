@@ -4,7 +4,7 @@ title: I2C (Inter-Integrated Circuit)
 
 # 06 - Inter-Integrated Circuit
 
-This lab will teach you how to communicate with hardware devices using the Inter-Integrated Circuit (I2C) protocol, in Embassy.
+This course will teach you how to communicate with hardware devices using the Inter-Integrated Circuit (I2C) protocol, in Embassy.
 
 import Tabs from '@theme/Tabs';
 import TabItem from '@theme/TabItem';
@@ -238,12 +238,12 @@ i2c.write_read(TARGET_ADDR, &tx_buf, &mut rx_buf).await.unwrap();
 
 ## BMP390 Digital Pressure Sensor
 
-The BMP390 is a digital temperature and pressure sensor designed by Bosch. It can be interfaced both with SPI and with I2C. In this lab, we will use the I2C protocol to communicate with the sensor, in order to retrieve the pressure and temperature values.
+The BMP390 is a digital temperature and pressure sensor designed by Bosch. It can be interfaced both with SPI and with I2C. In this course, we will use the I2C protocol to communicate with the sensor, in order to retrieve the pressure and temperature values.
 
 You can find its datasheet containing more relevant information [here](https://www.bosch-sensortec.com/media/boschsensortec/downloads/datasheets/bst-bmp390-ds002.pdf).
 
-:::tip BMP280 Address
-The default I2C address of the BMP280 is `0x76`.
+:::tip BMP390 Address
+The default I2C address of the BMP390 is `0x76` with `A0` pulled to ground.
 :::
 
 ### Register map
@@ -389,7 +389,7 @@ These are `u8`, `i8`, `u16`, and `i16` factory-calibrated parameters stored insi
 
 ### Temperature computation formula
 
-This formula is based on the **Compensation formula in fixed point** which can be found in section **8.5** of the [datasheet](https://www.bosch-sensortec.com/media/boschsensortec/downloads/datasheets/bst-bmp280-ds001.pdf).
+This formula is based on the **Compensation formula in fixed point** which can be found in section **8.5** of the [datasheet](https://www.bosch-sensortec.com/media/boschsensortec/downloads/datasheets/bst-bmp390-ds002.pdf).
 
 **Coefficient Conversion** before calculating the temperature, convert the raw NVM coefficients into floats using the scaling factors defined in **Section 8.4**:
 
@@ -420,27 +420,22 @@ t_lin dependency Keep the calculated `t_lin` value stored in memory. It is requi
 
 ### Wiring
 
-For the I2C protocol, you connect the SDI (Data) and SCK (Clock) pins. The SDO pin is used to select the I2C address (connected to GND for address 0x76 or VDDIO for 0x77). 
+For the I2C protocol, you connect the `SDI` (Data) and `SCK` (Clock) pins. The `SDO/A0` pin is used to select the I2C address (connected to `GND` for address `0x76` or `VDDIO` for `0x77`). 
 
-| Pin | Function |
-|-|-|
-| `VDDIO` | Digital Supply |
-| `VDD` | Analog Supply |
-| `VSS` | Ground |
-| `SCK` | Acts as `SCL` for I2C or `SCK` for SPI. |
-| `SDI` | Acts as `SDA` for I2C or `MOSI` for SPI. |
-| `SDO` | Acts as the I2C Address Select (LSB) or `MISO` for SPI. |
-| `CSB` | Chip Select |
-| `INT` | Interrupt |
+| Pin | Function | Name on lab board |
+|-|-|-|
+| `SCK` | Acts as `SCL` for I2C or `SCK` for SPI. | `BMP390_SCK` |
+| `SDI` | Acts as `SDA` for I2C or `MOSI` for SPI. | `BMP390_SDI` |
+| `A0` | Acts as the I2C Address Select (LSB) or `MISO` for SPI. | `BMP390_SDO/A0` |
 
 
-The BMP390 is integrated already integrated in the lab board, having some of these pins already wired, and some exposed in the **J8** breakout.
+The BMP390 is integrated in the lab board, having some of the other needed pins (e.g. ground, and power) pins already wired. The pins mentioned in the table above have been exposed on the **J8** breakout.
 
 ![J8_Breakout](./images/J8_Breakout.png)
 
 ### Reading and writing to the BMP390
 
-Instructions on how to use I2C with the BMP280 can be found in the [datasheet](https://www.bosch-sensortec.com/media/boschsensortec/downloads/datasheets/bst-bmp280-ds001.pdf), at section 5.2.
+Instructions on how to use I2C with the BMP390 can be found in the [datasheet](https://www.bosch-sensortec.com/media/boschsensortec/downloads/datasheets/bst-bmp390-ds002.pdf), at section 5.2.
 
 Before we start, we initialize the I2C driver with the pins and channel we will be using.
 
@@ -477,7 +472,7 @@ fn main() {
 }
 ```
 
-:::warning ``PXn`, `PYm` do not exist
+:::warning `PXn`, `PYm` do not exist
 You will need to replace them with the proper I2C peripheral and corresponding pins. 
 :::
 
@@ -520,7 +515,7 @@ In section 5.2.1 and 5.2.2 of the datasheet, we get the information we need in o
 
 #### Reading a register
 
-![i2c_bmp280_read](images/i2c_bmp390_read.png)
+![i2c_bmp390_read](images/i2c_bmp390_read.png)
 
 To read the value of a register, we first need to send the BMP390 the address of the register we want to read. Afterwards, the sensor will send back the value of the register we requested.
 
@@ -546,25 +541,25 @@ Like with SPI, we can also read multiple registers with consecutive addresses at
 ```rust
 let mut rx_buf = [0x00u8; 3];
 ```
-This is explained in section 5.3 of the datasheet.
+This is explained in section 5.2.2 of the datasheet.
 :::
 
 #### Writing to a register
 
-![i2c_bmp280_write](images/i2c_bmp390_write.png)
+![i2c_bmp390_write](images/i2c_bmp390_write.png)
 
 To write to a register, we need to send the sensor a buffer containing pairs of register addresses and values we want to write to those registers. For example, if we wanted to write `0x00` to `REG_A`:
 
 ```rust
 let tx_buf = [REG_A, 0x00];
-i2c.write(BMP280_ADDR, &tx_buf).await.unwrap();
+i2c.write(BMP390_ADDR, &tx_buf).await.unwrap();
 ```
 
 If we wanted to write both `REG_A` and `REG_B` to `0x00`:
 
 ```rust
 let tx_buf = [REG_A, 0x00, REG_B, 0x00];
-i2c.write(BMP280_ADDR, &tx_buf).await.unwrap();
+i2c.write(BMP390_ADDR, &tx_buf).await.unwrap();
 ```
 
 ## AT24C256 EEPROM
@@ -577,18 +572,14 @@ The AT24C256 uses a 7-bit I2C address, with the most significant 5 bits fixed as
 
 ### Wiring
 
-The AT24C256 has 8 pins with the following functions. For more information, consult the [datasheet](https://ww1.microchip.com/downloads/en/DeviceDoc/doc0670.pdf).
+The AT24C256 has 8 pins but only 2 are exposed on the lab board. For more information, consult the [datasheet](https://ww1.microchip.com/downloads/en/DeviceDoc/doc0670.pdf).
 
-| Pin | Function |
-| - | - |
-| AO - A1 | Address Inputs |
-| SDA | Serial Data |
-| SCL | Serial Clock Input |
-| WP | Write Protect |
-| NC | No Connect |
-| GND | Ground |
+| Pin | Function | Name on lab board |
+| - | - | - |
+| `SDA` | Serial Data | `EEPROM_SDA` |
+| `SCL` | Serial Clock Input | `EEPROM_SCL` |
 
-The AT24C256 is integrated already integrated in the lab board, having some of these pins already wired, and some exposed in the **J8** breakout.
+The AT24C256 is integrated already integrated in the lab board, having some of the other necessary pins already wired (e.g. A0-A1 address offset pins, ground, power, etc.). The pins mentioned in the table above are exposed in the **J8** breakout.
 
 ![J8_Breakout](./images/J8_Breakout.png)
 
@@ -649,7 +640,7 @@ After each complete memory write transaction, the EEPROM an internally-timed wri
 To simplify the interfacing with the non-volatile memory for your **project**, you can use the [`eeprom24x`](https://crates.io/crates/eeprom24x) crate. It is a is a platform agnostic Rust driver for the 24x series serial EEPROM, based on the [`embedded-hal`](https://docs.rs/embedded-hal/1.0.0/embedded_hal/) traits. This means that you will not be able to harness the power of the async executor, and you will need to use the conventional **blocking** API.
 
 :::tip Call to action
-At the end of this lab, you should be familiar with both the **blocking** and **async** I2C traits exported by the [`embedded-hal`](https://docs.rs/embedded-hal/1.0.0/embedded_hal/) and [`embedded-hal-async`](https://docs.rs/embedded-hal-async/1.0.0/embedded_hal_async/) and with a grasp of how I2C works. You could begin your journey into the OpenSource world by contributing to this crate, by creating a PR on their [github repository](https://github.com/eldruin/eeprom24x-rs) that adds support for the async API.
+At the end of this course, you should be familiar with both the **blocking** and **async** I2C traits exported by the [`embedded-hal`](https://docs.rs/embedded-hal/1.0.0/embedded_hal/) and [`embedded-hal-async`](https://docs.rs/embedded-hal-async/1.0.0/embedded_hal_async/) and with a grasp of how I2C works. You could begin your journey into the OpenSource world by contributing to this crate, by creating a PR on their [github repository](https://github.com/eldruin/eeprom24x-rs) that adds support for the async API.
 :::
 
 ## Exercises
@@ -714,4 +705,4 @@ To quickly convert an `i32` variable into an array of `u8`s, we can use either t
 
 ## Solutions
 
-The lab's exercises solutions are available in the [lab-solutions](https://github.com/UPB-PMRust/lab-solutions/tree/main/lab06) repository.
+The courses's exercises solutions are available in the [lab-solutions](https://github.com/UPB-PMRust/lab-solutions/tree/main/lab06) repository.
