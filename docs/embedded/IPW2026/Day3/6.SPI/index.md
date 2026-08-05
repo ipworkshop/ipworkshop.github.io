@@ -4,7 +4,7 @@ title: SPI (Serial Peripheral Interface)
 
 # Serial Peripheral Interface
 
-This lab will teach you how to communicate with hardware devices using the Serial Peripheral Interface (SPI) protocol, in Embassy. 
+This course will teach you how to communicate with hardware devices using the Serial Peripheral Interface (SPI) protocol, in Embassy.
 
 import Tabs from '@theme/Tabs';
 import TabItem from '@theme/TabItem';
@@ -18,7 +18,7 @@ import TabItem from '@theme/TabItem';
    - Chapter 12 - *Peripherals*
      - Chapter 12.3 - *SPI*
 
-4. **Invensense**, *[MPU-6000 Six-Axis (Gyro + Accelerometer) MEMS MotionTracking™ Device](https://invensense.tdk.com/products/motion-tracking/6-axis/mpu-6500/#documentation)*
+4. **Invensense**, *[MPU-6000 Six-Axis (Gyro + Accelerometer) MEMS MotionTracking™ Device](https://www.cdiweb.com/datasheets/invensense/mpu-6050_datasheet_v3%204.pdf)*
 
 5. **Paul Denisowski**, *[Understanding SPI](https://www.youtube.com/watch?v=0nVNwozXsIc)*
 
@@ -276,7 +276,7 @@ For example, for an analog temperature sensor, we would be getting a voltage rea
 ![Analog_Sensor](images/analog_sensor.svg)
 
 ### Digital sensors
-For this lab, we will be using a *digital sensor*, which is an *upgraded* version of an analog sensor. It contains a transducer, but also an internal MCU with an ADC. This means that the sensor itself deals with the analog-to-digital conversion and the processing of the voltage reading, and exposes it through a digital interface of registers that can be accessed using a specific communication protocol (e.g. SPI, I2C etc.).
+For this course, we will be using a *digital sensor*, which is an *upgraded* version of an analog sensor. It contains a transducer, but also an internal MCU with an ADC. This means that the sensor itself deals with the analog-to-digital conversion and the processing of the voltage reading, and exposes it through a digital interface of registers that can be accessed using a specific communication protocol (e.g. SPI, I2C etc.).
 
 ![Digital_Sensor](images/digital_sensor.svg)
 
@@ -285,8 +285,8 @@ For this lab, we will be using a *digital sensor*, which is an *upgraded* versio
 The **MPU-6000** is a *digital* gyroscope and accelerometer designed by InvenSense. It can be interfaced both with SPI and with I2C. This means that we can read the acceleration and angular velocity values directly from the registers of the MPU-6000 using SPI.
 
 :::info
-**[DATASHEET](https://invensense.tdk.com/wp-content/uploads/2020/06/PS-MPU-6500A-01-v1.3.pdf)**: Describes the chip and its capabilities. \
-**[REGISTER MAP](https://invensense.tdk.com/wp-content/uploads/2015/02/MPU-6500-Register-Map2.pdf)**: Describes how to configure and get values from the sensor.
+**[DATASHEET](https://www.cdiweb.com/datasheets/invensense/mpu-6050_datasheet_v3%204.pdf)**: Describes the chip and its capabilities. \
+**[REGISTER MAP](https://cdn.sparkfun.com/datasheets/Sensors/Accelerometers/RM-MPU-6000A.pdf)**: Describes how to configure and get values from the sensor.
 :::
 
 ### MPU-6000 Memory Map
@@ -364,22 +364,16 @@ The values read from the sensor are 16-bit signed integers and must be interpret
 
 ### MPU-6000 wiring
 
-The MPU-6000 has 5 pins:
+The MPU-6000 has the following relevant pins:
 
-| Pin | Function |
-|-|-|
-| `VCC` | power source (3V3) |
-| `GND` | ground |
-| `SCL` | `CLK` line |
-| `SDA` | `MOSI` line |
-| `EDA` | external sensors data line|
-| `ECL` | external sensors clock |
-| `ADO` | `MISO` line |
-| `INT` | interrupt line |
-| `NCS` | `CS` line, active Low |
-| `FSYNC` | synchronizing with external sensors |
+| Pin | Function | Name on lab board |
+|-|-|-|
+| `SCL` | `CLK` line | `MPU-6000_SCL/SCLK` |
+| `SDI` | `MOSI` line | `MPU-6000_SDA/SDI` |
+| `SDO` | `MISO` line | `MPU-6000_A0/SD0` |
+| `NCS` | `CS` line, active Low | `MPU-6000_nCS` |
 
-![mpu6500_wiring](images/mpu6500_wiring.png)
+<!-- ![mpu6500_wiring](images/mpu6500_wiring.png) -->
 
 :::note
 The MPU-6000 can also be interfaced through I2C, using the same pins but with different functions.
@@ -392,10 +386,9 @@ The MPU-6000 can also act as an I2C master and communicate with external sensors
 
 ### Reading data from the MPU-6000 sensor using Embassy
 
-To get the data we want from the digital sensor, we need to access its internal registers. The MPU-6000 has some rules when it comes to reading and writing to these registers, that must be extracted from the [datasheets](https://invensense.tdk.com/products/motion-tracking/6-axis/mpu-6500/#documentation). Every sensor has different registers, and different ways of interfacing them, so reading the datasheet is usually required, especially when we don't have the leverage of using already existing libraries for these sensors.
+To get the data we want from the digital sensor, we need to access its internal registers. The MPU-6000 has some rules when it comes to reading and writing to these registers, that must be extracted from the datasheet. Every sensor has different registers, and different ways of interfacing them, so reading the datasheet is usually required, especially when we don't have the leverage of using already existing libraries for these sensors.
 
 First, we make sure our SPI is initialized correctly.
-
 
 
 <Tabs>
@@ -439,7 +432,7 @@ let mut cs = Output::new(p.PIN_N, Level::High);
 
 </Tabs>
 
-In section 6.5 of the [datasheet](https://invensense.tdk.com/wp-content/uploads/2020/06/PS-MPU-6500A-01-v1.3.pdf), we get the information we need in order to read/write to a register of the MPU-6000. 
+In section 9.5 of the datasheet, we get the information we need in order to read/write to a register of the MPU-6000. 
 
 ![SPI_read_write_MPU6500](images/spi_read_write_mpu6500.png)
 
@@ -502,7 +495,7 @@ spi.transfer(&mut rx_buf, &tx_buf).await;
 
 The **ST7735** features a **128x160** screen and an integrated **SD card reader**. For now, we will ignore the SD card reader and focus on the screen.
 
-Because writing an SPI driver for the ST7735 would be out of the scope of the lab, we will be using the one provided by the **mipidsi** crate.
+Because writing an SPI driver for the ST7735 would be out of the scope of the course, we will be using the one provided by the **mipidsi** crate.
 
 <Tabs>
   <TabItem value="stm32u5" label="STM32 Nucleo-U545RE-Q" default>
@@ -536,7 +529,7 @@ let screen_rst = Output::new(p.PXn, Level::Low, Speed::Low);
 let screen_dc = Output::new(p.PYm, Level::Low, Speed::Low);
 let screen_cs = Output::new(p.PZo, Level::High, Speed::Low);
 
-let spi_bus: Mutex<NoopRawMutex, _> = Mutex::new(RefCell::new(spi));
+let spi_bus_mutex: Mutex<NoopRawMutex, _> = Mutex::new(RefCell::new(spi));
 let display_spi = SpiDeviceWithConfig::new(&spi_bus_mutex, screen_cs, screen_spi_config);
 
 let mut screen_buffer = [0; 10 * 4096];
@@ -643,11 +636,15 @@ Make sure to check out the [documentation](https://docs.rs/embedded-graphics/lat
 
 ## Exercises
 
-1. Connect the MPU-6000 as described in the [wiring configuration](#mpu-6500-wiring) (**1p**)
-2. Read and create a debug log with the [WHO_AM_I](#mpu-6000-memory-map) register. Does the result match the [data sheet](https://invensense.tdk.com/wp-content/uploads/2015/02/MPU-6500-Register-Map2.pdf)? (**1p**)
+:::info
+**You can view sample applications for the running MPU-6000 and LCD screen here at: https://github.com/ipworkshop/ipw2026-embedded-schelet/tree/samples**
+:::
+
+1. Connect the MPU-6000 as described in the [wiring configuration](#mpu-6000-wiring) (**1p**)
+2. Read and create a debug log with the [WHO_AM_I](#mpu-6000-memory-map) register. Does the result match the data sheet? (**1p**)
 
 :::tip
-Take a look at the [Reading data from the MPU-6000 sensor using Embassy](#reading-data-from-the-mpu-6500-sensor-using-embassy) section.
+Take a look at the [Reading data from the MPU-6000 sensor using Embassy](#reading-data-from-the-mpu-6000-sensor-using-embassy) section.
 :::
 
 3. Get the acceleration and angular velocity readings from the sensor.
@@ -733,7 +730,3 @@ In order to increase the framerate, make sure to decrease the delay.
 
 Clearing the whole screen takes time. In order to optimize further, instead, draw a black circle over the old one before computing the new location.
 :::
-
-## Solutions
-
-The lab's exercises solutions are available in the [lab-solutions](https://github.com/UPB-PMRust/lab-solutions/tree/main/lab05) repository.
