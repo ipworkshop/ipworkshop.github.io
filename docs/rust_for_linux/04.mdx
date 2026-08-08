@@ -1,0 +1,530 @@
+# 04 - Interrupt Handling
+
+import Tabs from '@theme/Tabs';
+import TabItem from '@theme/TabItem';
+
+## Interrupt handling in Rust for Linux
+
+The kernel's Rust `irq` module exposes interrupt registration through the
+[`irq::IrqRequest`](https://rust.docs.kernel.org/kernel/irq/struct.IrqRequest.html)
+type. The critical design constraint is that **`IrqRequest` has no public
+constructor** — it is sealed inside the `kernel` crate. The only way to obtain
+one is from an [`acpi::Device`](https://rust.docs.kernel.org/kernel/acpi/struct.Device.html)
+handle that the ACPI subsystem hands to your driver's `.add()` callback after
+matching your declared HID against the ACPI namespace. There is no back door to
+the C `request_irq()` path; attempting to call it directly from Rust would
+require an `unsafe` block and manual lifetime proofs that the abstraction
+intentionally makes unnecessary.
+
+This design enforces a correct-by-construction invariant: by the time you hold
+an `IrqRequest`, the kernel has already walked `_CRS`, translated the raw GSI
+to a virtual IRQ number, and recorded the resource claim in `/proc/interrupts`.
+A hardcoded IRQ number — even the historically stable IRQ 1 for a PS/2
+keyboard — bypasses all of that, breaks on any platform with dynamic interrupt
+routing (IO-APIC, GIC, virtualised APIC), and leaves the resource tree unaware
+of your driver's claim.
+
+## Registering a driver against the ACPI table
+
+### The `acpi_device_table!` macro
+```rust
+acpi_device_table!(
+    ACPI_TABLE,
+    MODULE_ACPI_TABLE,
+    <KbdDriver as platform::Driver>::IdInfo,
+    [
+        (acpi::DeviceId::new(c"KBD0001"), ()),
+    ]
+);
+```
+
+This macro declares two static symbols and wires them together:
+
+- **`ACPI_TABLE`** — a Rust-visible static of type
+  [`acpi::IdTable<IdInfo>`](https://rust.docs.kernel.org/kernel/acpi/type.IdTable.html),
+  used by the driver implementation to point the kernel at the match table at
+  compile time.
+- **`MODULE_ACPI_TABLE`** — a C-visible static emitted into the
+  `.acpi_device_ids` linker section. `depmod` and the module loader read this
+  section to build `modules.alias`, which is what causes `udev` to autoload
+  your module when the ACPI subsystem enumerates a device with a matching HID.
+
+The third argument, `<KbdDriver as platform::Driver>::IdInfo`, is the type
+carried alongside each match entry — here `()`, meaning no extra per-device
+data is needed. The fourth argument is the match list itself: each entry is a
+tuple of an [`acpi::DeviceId`](https://rust.docs.kernel.org/kernel/acpi/struct.DeviceId.html)
+and its associated `IdInfo` value. `c"KBD0001"` is a C-string literal
+(stabilised in Rust 1.77) that matches the `_HID` string declared in the SSDT
+exactly.
+
+---
+
+### The `platform::Driver` implementation
+```rust
+#[pin_data]
+struct KbdHandler {}
+
+impl platform::Driver for KbdDriver {
+    type IdInfo = ();
+    const ACPI_ID_TABLE: Option<acpi::IdTable<Self::IdInfo>> = Some(&ACPI_TABLE);
+
+    fn probe(
+        dev: &platform::Device<Core>,
+        _id_info: Option<&Self::IdInfo>,
+    ) -> impl PinInit<Self, Error> {
+        // ...
+    }
+}
+```
+
+[`platform::Driver`](https://rust.docs.kernel.org/kernel/platform/trait.Driver.html)
+is the Rust trait that maps onto the kernel's `platform_driver` abstraction.
+Even though the device is ACPI-described, the platform bus is the correct
+binding point — the ACPI subsystem enumerates the device and then hands it off
+to the platform bus for driver matching.
+
+- **`ACPI_ID_TABLE`** — an `Option` pointing at the `ACPI_TABLE` static
+  declared above. Setting this to `Some(&ACPI_TABLE)` is what connects the
+  match table to this specific driver. The kernel reads this constant when
+  registering the driver and installs the HID entries into the ACPI match
+  infrastructure.
+
+- **`probe`** — called once per matched device. It receives a
+  [`platform::Device<Core>`](https://rust.docs.kernel.org/kernel/platform/struct.Device.html)
+  rather than a raw `acpi::Device`; the `Core` type parameter indicates this is
+  a freshly probed device that has not yet had any additional state attached to
+  it. The `_id_info` argument carries the `IdInfo` value from whichever match
+  entry triggered the probe — useful when a single driver handles multiple HIDs
+  with different configurations.
+
+- **return type `impl PinInit<Self, Error>`** — rather than returning a
+  fully-constructed `Self` directly, `probe` returns a
+  [`PinInit`](https://rust.docs.kernel.org/kernel/init/trait.PinInit.html)
+  initialiser. This allows the kernel to allocate and pin the driver's backing
+  memory before running the initialisation closure, which is required for any
+  driver that contains `Mutex`, `SpinLock`, or other types that must not be
+  moved after construction.
+
+:::note
+The `IrqRequest` for the device's interrupt line is obtained inside `probe`
+from the `platform::Device` handle — the same sealed construction path
+described in the previous section. You cannot construct an `IrqRequest`
+independently of a device handle received through `probe`.
+:::
+
+### The driver struct and `probe` implementation
+```rust
+struct KbdDriver {
+    _reg: Arc<irq::Registration<KbdHandler>>,
+}
+```
+
+`KbdDriver` holds a single field: an
+[`Arc`](https://rust.docs.kernel.org/kernel/sync/struct.Arc.html)`<`[`irq::Registration<KbdHandler>`](https://rust.docs.kernel.org/kernel/irq/struct.Registration.html)`>`.
+The `Arc` is necessary because the registration must outlive the `probe` call
+itself — the kernel retains ownership of the device for the lifetime of the
+module, and `Arc` ensures the `Registration` (and therefore the live IRQ
+handler) is kept alive for exactly that duration. Dropping `KbdDriver` drops
+the `Arc`, which — once no other references exist — drops the `Registration`,
+which calls `free_irq()` and quiesces any in-flight handler before the backing
+memory is freed.
+
+---
+```rust
+fn probe(
+    dev: &platform::Device<Core>,
+    _id_info: Option<&Self::IdInfo>,
+) -> impl PinInit<Self, Error> {
+    pr_info!("probing device\n");
+    Ok(KbdDriver {
+        _reg: {
+            let req = dev.irq_by_index(0)?;
+
+            Arc::pin_init(
+                irq::Registration::new(
+                    req,
+                    irq::Flags::SHARED,
+                    c"rust_keyboard_irq",
+                    try_pin_init!(KbdHandler {}),
+                ),
+                GFP_KERNEL,
+            )?
+        },
+    })
+}
+```
+
+Walking through each step:
+
+**`dev.irq_by_index(0)`** — retrieves the first
+[`irq::IrqRequest`](https://rust.docs.kernel.org/kernel/irq/struct.IrqRequest.html)
+from the platform device's resource list, as resolved by the ACPI subsystem
+from `_CRS`. Index `0` corresponds to the first `IRQNoFlags` entry in the SSDT
+— in this case IRQ 1. This is the only valid construction path for an
+`IrqRequest`; there is no public constructor.
+
+**`irq::Registration::new(...)`** — constructs a pinned initialiser (not yet a
+live registration) from four arguments:
+
+| Argument | Value | Purpose |
+|---|---|---|
+| `req` | `IrqRequest` | The resolved IRQ line from `_CRS` |
+| `irq::Flags::SHARED` | [`irq::Flags`](https://rust.docs.kernel.org/kernel/irq/struct.Flags.html) | Allows other drivers to share the line — required for legacy ISA IRQs |
+| `c"rust_keyboard_irq"` | C-string literal | Name shown in `/proc/interrupts` |
+| `try_pin_init!(KbdHandler {})` | [`PinInit`](https://rust.docs.kernel.org/kernel/init/trait.PinInit.html) | Initialiser for the handler state, evaluated in-place after pinning |
+
+**`Arc::pin_init(..., GFP_KERNEL)`** — allocates a heap region with
+[`GFP_KERNEL`](https://rust.docs.kernel.org/kernel/alloc/flags/constant.GFP_KERNEL.html),
+pins it (guaranteeing it will never be moved in memory), and runs the
+`Registration` initialiser inside it. The `?` propagates any allocation or
+`request_irq` failure back up the `PinInit` chain as an `Error`, which the
+kernel unwinds cleanly without any manual rollback.
+
+The outer `Ok(KbdDriver { _reg: ... })` wraps the fully initialised struct in
+the `PinInit` return type expected by the platform driver framework. From this
+point the IRQ handler is live, the resource is recorded in the kernel's
+interrupt table, and the registration is tied to the lifetime of the
+`KbdDriver` instance.
+
+:::tip Verifying the handler is live
+After loading the module, confirm the handler registered correctly:
+```bash
+grep rust_keyboard_irq /proc/interrupts
+```
+
+You should see an entry on IRQ 1 with the name `rust_keyboard_irq` and a
+rising invocation count as keys are pressed.
+:::
+
+### Reading the PS/2 ports in the interrupt handler
+
+The PS/2 controller exposes two I/O ports that the interrupt handler must
+interact with on every IRQ 1 invocation:
+
+| Constant | Port | Purpose |
+|---|---|---|
+| `KBD_DATA_PORT` | `0x60` | Scan code register — read to dequeue the next byte |
+| `KBD_STATUS_PORT` | `0x64` | Status register — bit 0 (`OBF`) signals data is waiting |
+| `KBD_STATUS_OBF` | — | Output Buffer Full bitmask (`1 << 0`) |
+
+The controller raises IRQ 1 when it has placed a scan code byte into the data
+register. The handler must read `0x60` to dequeue it — if the byte is not read,
+the controller will not raise another interrupt for the next key event.
+
+#### The `inb` helper
+```rust
+fn inb(port: u16) -> u8 {
+    let mut value: u8 = 0;
+    use core::arch::asm;
+    unsafe {
+        asm!(
+            "in al, dx",
+            in("dx") port,
+            out("al") value,
+            options(nomem, nostack)
+        );
+    }
+    value
+}
+```
+
+`inb` wraps the x86 `IN` instruction, which reads a single byte from an I/O
+port into `AL`. The port number is passed in `DX`. The `nomem` option tells the
+compiler that the instruction does not access Rust-visible memory, and
+`nostack` confirms it does not touch the stack — both are accurate for a bare
+`IN` instruction and allow the compiler to schedule it freely relative to
+surrounding non-I/O code.
+
+The `unsafe` block is unavoidable here: raw I/O port access is inherently
+outside Rust's memory model. In a production driver this would be wrapped in a
+safe abstraction gated behind the `IoPort` resource received from the platform
+device, but for clarity the raw form is shown.
+
+#### Using the ports in the handler
+```rust
+use kernel::irq;
+use kernel::prelude::*;
+
+struct KbdHandler;
+
+#[vtable]
+impl irq::Handler for KbdHandler {
+    type Data = ();
+
+    fn handle_irq(_data: ()) -> irq::Return {
+        // Check that the controller actually has data ready before reading.
+        // A spurious IRQ 1 can occur on some hardware; reading 0x60 without
+        // checking OBF on a PS/2 controller that shares the line may dequeue
+        // a byte that belongs to a subsequent event.
+        let status = inb(KBD_STATUS_PORT);
+        if status & KBD_STATUS_OBF == 0 {
+            return irq::Return::None;
+        }
+
+        // Reading 0x60 both retrieves the scan code and clears the OBF flag,
+        // allowing the controller to accept the next key event.
+        let scancode = inb(KBD_DATA_PORT);
+
+        pr_info!("scan code: {:#04x}\n", scancode);
+
+        irq::Return::Handled
+    }
+}
+```
+
+The status check before reading `0x60` is important for two reasons. First, on
+hardware where IRQ 1 is declared `SHARED` (as it is in this driver), another
+device may have triggered the interrupt — returning `irq::Return::None` tells
+the kernel the interrupt was not ours so the next handler in the shared chain
+gets a chance to claim it. Second, reading `0x60` when `OBF` is clear on some
+controllers produces undefined data or interferes with subsequent keyboard
+events.
+
+Once `OBF` is confirmed set, reading `KBD_DATA_PORT` atomically dequeues the
+scan code and clears the flag. The controller is then ready to assert IRQ 1
+again for the next key event. Returning `irq::Return::Handled` tells the kernel
+the interrupt was fully serviced and suppresses further handler dispatch.
+
+:::caution x86 only
+The `IN` instruction and the `0x60`/`0x64` port map are specific to x86 and
+x86-64. A portable driver would obtain typed `IoPort` resources from the
+platform device handle rather than issuing raw `asm!` blocks, letting the
+kernel's port I/O abstraction handle architecture differences.
+:::
+
+## ACPI Tables
+
+ACPI (Advanced Configuration and Power Interface) is an open industry standard
+that defines how an operating system discovers, configures, and manages
+hardware. Rather than hardcoding knowledge about every possible motherboard
+layout, CPU topology, or peripheral bus into the kernel, the firmware (BIOS or UEFI) exposes a
+set of structured data tables that describe the machine's hardware at boot time.
+The OS reads these tables early in the boot process — before any drivers load —
+and uses them to build an accurate picture of what physical and logical devices
+are present, what resources they consume, and how they should be managed.
+
+The tables themselves are a hierarchy of binary blobs, each with a well-defined
+header signature (`DSDT`, `SSDT`, `MADT`, `FADT`, and many others) that tells
+the OS how to interpret the payload. The most important is the `DSDT`
+(Differentiated System Description Table), which is embedded directly in the
+firmware and describes the baseline hardware configuration. `SSDT` tables are
+supplemental and can be injected at runtime by the bootloader or by the OS
+itself — this is the mechanism that allows projects like OpenCore or custom
+hypervisors to patch or extend the firmware description without modifying the
+underlying UEFI image.
+
+Beyond device enumeration, ACPI is the primary mechanism through which the OS
+negotiates power management with the hardware. Sleep states (`S1`–`S5`), CPU
+C-states and P-states, thermal trip points, battery status, and lid and button
+events are all expressed through ACPI objects and methods. When you close a
+laptop lid and the machine suspends, or when the kernel throttles a CPU because
+a thermal sensor crossed a threshold, it is almost certainly doing so by
+evaluating AML bytecode defined in one of these tables. This makes ACPI tables
+uniquely important in embedded and virtualisation work: a misconfigured or
+missing table can cause everything from spurious wake events to completely
+broken power management, while a well-crafted `SSDT` can expose hardware to a
+guest OS that the host firmware never anticipated.
+
+:::info
+The ACPI specification is maintained by the UEFI Forum and is freely available
+at [uefi.org](https://uefi.org/specifications). It is the authoritative
+reference for all table signatures, object names, and AML semantics.
+:::
+
+## Installing `iasl`
+
+`iasl` is the reference ACPI compiler and decompiler shipped as part of the
+**ACPICA** (ACPI Component Architecture) project. It is available in the
+default package repositories of most Linux distributions and requires no
+additional configuration after installation.
+
+Install the `acpica-tools` package, which bundles `iasl` alongside the rest of
+the ACPICA utilities (`acpixtract`, `acpiexec`, and others):
+
+<Tabs groupId="os">
+  <TabItem value="ubuntu" label="Ubuntu 24.04">
+
+```bash
+sudo apt install acpica-tools
+```
+
+  </TabItem>
+  <TabItem value="fedora" label="Fedora 43">
+
+```bash
+sudo dnf install acpica-tools
+```
+
+  </TabItem>
+</Tabs>
+
+Verify the installation:
+```bash
+iasl -v
+```
+
+You should see output similar to:
+```
+Intel ACPI Component Architecture
+ASL+ Optimizing Compiler/Disassembler version 20230628
+```
+
+
+## ASL and DSL (ACPI Table Format)
+
+ACPI firmware is described in two closely related representations: **ASL** (ACPI Source Language) and **DSL** (Differentiated System Description Language). Understanding the distinction between them, and how they map to each other, is essential when reading or authoring ACPI tables.
+
+### ASL vs. DSL — what's the difference?
+
+ASL is the **human-readable source language** you write by hand (or generate with a tool). DSL refers to the binary-encoded output produced when an ASL file is compiled — it is the format the firmware actually loads. In practice, "ASL" is used loosely to describe the textual notation, while "DSL" strictly refers to the `.dsl` extension commonly given to ASL source files before compilation. Both terms describe the same textual representation; the compiled output is an **AML** (ACPI Machine Language) blob.
+
+The canonical compiler is **`iasl`**, part of the ACPICA project:
+```bash
+iasl -tc my_table.dsl        # compile → .aml
+iasl -d my_table.aml          # decompile → .dsl
+```
+
+---
+
+### The ACPI table
+
+The following example defines a Secondary System Description Table (SSDT) that exposes a PS/2 keyboard to the operating system:
+```c
+DefinitionBlock ("", "SSDT", 2, "TEST", "VIRTACPI", 0x00000001)
+{
+    Scope (\_SB)
+    {
+        Device (KBD)
+        {
+            Name (_HID, "KBD0001")
+            Name (_UID, 1)
+            Name (_STA, 0x0F)
+            Name (_CRS, ResourceTemplate ()
+            {
+                IO (Decode16, 0x0060, 0x0060, 0x01, 0x01,)
+                IO (Decode16, 0x0064, 0x0064, 0x01, 0x01,)
+                IRQNoFlags () {1}
+            })
+        }
+    }
+}
+```
+
+#### The `DefinitionBlock` header
+
+Every ACPI table starts with a `DefinitionBlock` declaration. Its arguments map directly to the fields of the ACPI table header:
+
+| Argument | Value in example | Meaning |
+|---|---|---|
+| Output file | `""` | No output filename (handled by compiler) |
+| Signature | `"SSDT"` | Table type — here a Secondary SDT |
+| Compliance revision | `2` | ACPI spec revision the table targets |
+| OEM ID | `"TEST"` | Up to 6-character vendor identifier |
+| OEM Table ID | `"VIRTACPI"` | Up to 8-character table identifier |
+| OEM Revision | `0x00000001` | Vendor-defined version number |
+
+The **signature** controls how the OS interprets the table. Common values include `DSDT` (the primary table, loaded unconditionally) and `SSDT` (supplemental tables, often injected by the bootloader or firmware at runtime).
+
+#### Scope and the ACPI namespace
+
+ACPI organises all objects — devices, methods, data — in a global namespace tree. `Scope` changes the current node in that tree without creating a new object:
+```c
+Scope (\_SB) { ... }
+```
+
+`\_SB` is the predefined **System Bus** scope. Any device declared inside it becomes visible to the OS as a bus-attached device. Other commonly used scopes include `\_PR` (processors) and `\_TZ` (thermal zones).
+
+#### Device objects
+
+A `Device` block declares a logical hardware device in the namespace:
+```c
+Device (KBD) { ... }
+```
+
+The four-character name `KBD` becomes the device's namespace path — relative to its enclosing `Scope`, the full path is `\_SB.KBD`.
+
+Inside the `Device`, **predefined names** (always prefixed with `_`) communicate specific information to the OS:
+
+| Name | Value | Purpose |
+|---|---|---|
+| `_HID` | `"KBD0001"` | Hardware ID — matches the device to a driver |
+| `_UID` | `1` | Unique instance ID when multiple identical devices exist |
+| `_STA` | `0x0F` | Device status bitmask (present, enabled, visible, functional) |
+| `_CRS` | `ResourceTemplate` | Current resource settings — I/O ports, IRQs, memory regions |
+
+The `_STA` value is a 4-bit field: `0x0F` sets all four low bits, meaning the device is **present, enabled, shown in the UI, and functioning**.
+
+#### Resource descriptors (`_CRS`)
+
+`_CRS` returns a byte stream describing the hardware resources the device consumes. The `ResourceTemplate` macro assembles individual descriptors into that stream.
+
+**`IO` descriptor** — claims an I/O port range:
+```c
+IO (Decode16,
+    0x0060,   // Range Minimum
+    0x0060,   // Range Maximum
+    0x01,     // Alignment
+    0x01,     // Length
+)
+```
+
+`Decode16` instructs the bus to use 16-bit I/O address decoding. Because both the minimum and maximum are `0x0060` and the length is `1`, this descriptor claims exactly **one byte at port 0x60** (the PS/2 data port). The second `IO` descriptor does the same for port `0x64` (the command/status port).
+
+**`IRQNoFlags` descriptor** — claims an interrupt line:
+```c
+IRQNoFlags () {1}
+```
+
+The brace-enclosed list selects which IRQ lines are claimed — here, **IRQ 1**, the standard interrupt for a PS/2 keyboard controller. `IRQNoFlags` means the interrupt is edge-triggered, active-high, and non-shareable.
+
+---
+
+### Compilation and loading
+
+After authoring, the workflow is:
+
+1. **Compile** the `.dsl` source to a `.aml` binary with `iasl`.
+2. **Inject** the binary into the firmware (for real hardware) or pass it to a hypervisor/bootloader (for virtual machines).
+3. The OS **parses** the AML at boot, walks the namespace, and instantiates drivers for each discovered `Device`.
+
+:::tip Decompiling existing tables
+On a running Linux system you can dump and decompile all loaded ACPI tables with:
+```bash
+sudo cat /sys/firmware/acpi/tables/DSDT > DSDT.dat
+iasl -d DSDT.dat
+```
+This is useful for understanding what your firmware exposes before writing a corrective SSDT.
+:::
+
+:::info
+The ACPI specification and the full ACPICA compiler reference are maintained at [acpica.org](https://acpica.org). The specification is the authoritative source for all predefined names, resource descriptor layouts, and namespace rules.
+:::
+
+## Kernel Configuration
+
+To use ACPI, we have to enable kernel ACPI and PCI support.
+
+:::warning
+The kernel fails to parse the ACPI tables unless the PCI support is enabled.
+:::
+
+We have to run `make menuconfig` and select the following components:
+
+```text
+- Power management and ACPI options
+  - ACPI (Advanced Configuration and Power Interface)
+- Device Drivers
+  - PCI support
+```
+
+## Exercises
+
+1. Compile the kernel with the ACPI and PCI flags. If you are using `ARM64`, you will have to cross compile the kernel for `x86_64` adding the `ARCH=x86_64` variable in the command lines.
+:::warning
+Make sure you copy the x86 [`busybox`](pathname:///prebuilt/busybox) into the `$INIT_RAM_FS` and make it executable using `chmod a+x busybox`.
+:::
+2. Run QEMU with the kernel and check if the ACPI tables are loaded using `dmesg | grep -i acpi`.
+3. Compile the [`keyboard_override.dsl`](#the-acpi-table) file using `iasl` and add it to the qemu command line `-acpitable file=keyboard_override.aml`. Run QEMU and check the `/sys/bus/acpi` to see if you can find the `KBD0001` driver.
+4. Write a `platform` driver that registers for the `KBD0001` device. Print a message from the `probe` function to test if it is called.
+5. Register the interrupt handler for the first `KBD0001` interrupt. List the registered interrupt handles from `/proc/interrupts`.
+6. Read the keys from the keyboard using the `inb` function and print the to the kernel logs. Make sure to delete `-nographic` from the QEMU command line and add `-serial stdio`. Press the keys in the QEMU GUI. The console will still run on the serial port.
