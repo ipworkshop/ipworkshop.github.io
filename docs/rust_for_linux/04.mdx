@@ -260,7 +260,7 @@ impl irq::Handler for KbdHandler {
 
         pr_info!("scan code: {:#04x}\n", scancode);
 
-        irq::IrqReturn::Handled
+        IrqReturn::Handled
     }
 }
 ```
