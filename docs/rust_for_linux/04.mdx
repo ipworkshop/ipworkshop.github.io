@@ -59,10 +59,32 @@ exactly.
 
 ---
 
+### The driver struct
+```rust
+module_platform_driver! {
+    type: KbdDriver,
+    name: "rustkbd",
+    authors: ["IP Workshop"],
+    description: "Keyboard driver sample",
+    license: "GPL",
+}
+struct KbdDriver {
+    _reg: Arc<irq::Registration<KbdHandler>>,
+}
+```
+
+`KbdDriver` holds a single field: an
+[`Arc`](https://rust.docs.kernel.org/kernel/sync/struct.Arc.html)`<`[`irq::Registration<KbdHandler>`](https://rust.docs.kernel.org/kernel/irq/struct.Registration.html)`>`.
+The `Arc` is necessary because the registration must outlive the `probe` call
+itself — the kernel retains ownership of the device for the lifetime of the
+module, and `Arc` ensures the `Registration` (and therefore the live IRQ
+handler) is kept alive for exactly that duration. Dropping `KbdDriver` drops
+the `Arc`, which — once no other references exist — drops the `Registration`,
+which calls `free_irq()` and quiesces any in-flight handler before the backing
+memory is freed.
+
 ### The `platform::Driver` implementation
 ```rust
-#[pin_data]
-struct KbdHandler {}
 
 impl platform::Driver for KbdDriver {
     type IdInfo = ();
@@ -112,25 +134,13 @@ described in the previous section. You cannot construct an `IrqRequest`
 independently of a device handle received through `probe`.
 :::
 
-### The driver struct and `probe` implementation
-```rust
-struct KbdDriver {
-    _reg: Arc<irq::Registration<KbdHandler>>,
-}
-```
-
-`KbdDriver` holds a single field: an
-[`Arc`](https://rust.docs.kernel.org/kernel/sync/struct.Arc.html)`<`[`irq::Registration<KbdHandler>`](https://rust.docs.kernel.org/kernel/irq/struct.Registration.html)`>`.
-The `Arc` is necessary because the registration must outlive the `probe` call
-itself — the kernel retains ownership of the device for the lifetime of the
-module, and `Arc` ensures the `Registration` (and therefore the live IRQ
-handler) is kept alive for exactly that duration. Dropping `KbdDriver` drops
-the `Arc`, which — once no other references exist — drops the `Registration`,
-which calls `free_irq()` and quiesces any in-flight handler before the backing
-memory is freed.
-
 ---
+
+### The `probe` implementation
 ```rust
+#[pin_data]
+struct KbdHandler {}
+
 fn probe(
     dev: &platform::Device<Core>,
     _id_info: Option<&Self::IdInfo>,
