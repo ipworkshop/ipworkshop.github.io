@@ -244,14 +244,14 @@ device, but for clarity the raw form is shown.
 ```rust
 
 impl irq::Handler for KbdHandler {
-    fn handle(_device: &kernel::device::Device<kernel::device::Bound>) -> irq::IrqReturn {
+    fn handle(_device: &Device<Bound>) -> IrqReturn {
         // Check that the controller actually has data ready before reading.
         // A spurious IRQ 1 can occur on some hardware; reading 0x60 without
         // checking OBF on a PS/2 controller that shares the line may dequeue
         // a byte that belongs to a subsequent event.
         let status = inb(KBD_STATUS_PORT);
         if status & KBD_STATUS_OBF == 0 {
-            return irq::IrqReturn::None;
+            return IrqReturn::None;
         }
 
         // Reading 0x60 both retrieves the scan code and clears the OBF flag,
