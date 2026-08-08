@@ -298,7 +298,7 @@ fi
 
 if [ -z $INIT_RAM_FS ]; then
     echo "initramfs folder not set, use export INIT_RAM_FS=..."
-    ecit 1
+    exit 1
 fi
 
 echo "Building module"
@@ -314,7 +314,7 @@ echo "Kernel version $KVERSION"
 echo "Copying driver"
 MODULES_DIR="$INIT_RAM_FS/lib/modules/$KVERSION"
 mkdir -p "$MODULES_DIR"
-cp build/empty.ko "$MODULES_DIR"
+cp "build/${MODULE}" "$MODULES_DIR"
 
 echo "Compressing initramfs"
 (cd "$INIT_RAM_FS" && find . -print0 | cpio --null -ov --format=newc | gzip -9 > "$BUILD_DIR/initramfs.cpio.gz")
