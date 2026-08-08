@@ -535,6 +535,6 @@ Make sure you copy the x86 [`busybox`](pathname:///prebuilt/busybox) into the `$
 :::
 2. Run QEMU with the kernel and check if the ACPI tables are loaded using `dmesg | grep -i acpi`.
 3. Compile the [`keyboard_override.dsl`](#the-acpi-table) file using `iasl` and add it to the qemu command line `-acpitable file=keyboard_override.aml`. Run QEMU and check the `/sys/bus/acpi` to see if you can find the `KBD0001` driver.
-4. Write a `platform` driver that registers for the `KBD0001` device. Print a message from the `probe` function to test if it is called.
+4. Write a `platform` driver that registers for the `KBD0001` device and append onto the qemu `-append` parameter `i8042.nopnp=1` to make sure the ps2 driver doesnt catch your interrupts. Print a message from the `probe` function to test if it is called.
 5. Register the interrupt handler for the first `KBD0001` interrupt. List the registered interrupt handles from `/proc/interrupts`.
 6. Read the keys from the keyboard using the `inb` function and print the to the kernel logs. Make sure to delete `-nographic` from the QEMU command line and add `-serial stdio`. Press the keys in the QEMU GUI. The console will still run on the serial port.
