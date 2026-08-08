@@ -242,23 +242,16 @@ device, but for clarity the raw form is shown.
 
 #### Using the ports in the handler
 ```rust
-use kernel::irq;
-use kernel::prelude::*;
 
-struct KbdHandler;
-
-#[vtable]
 impl irq::Handler for KbdHandler {
-    type Data = ();
-
-    fn handle_irq(_data: ()) -> irq::Return {
+    fn handle(_device: &Device<Bound>) -> IrqReturn {
         // Check that the controller actually has data ready before reading.
         // A spurious IRQ 1 can occur on some hardware; reading 0x60 without
         // checking OBF on a PS/2 controller that shares the line may dequeue
         // a byte that belongs to a subsequent event.
         let status = inb(KBD_STATUS_PORT);
         if status & KBD_STATUS_OBF == 0 {
-            return irq::Return::None;
+            return IrqReturn::None;
         }
 
         // Reading 0x60 both retrieves the scan code and clears the OBF flag,
@@ -267,7 +260,7 @@ impl irq::Handler for KbdHandler {
 
         pr_info!("scan code: {:#04x}\n", scancode);
 
-        irq::Return::Handled
+        IrqReturn::Handled
     }
 }
 ```
@@ -345,14 +338,21 @@ the ACPICA utilities (`acpixtract`, `acpiexec`, and others):
   <TabItem value="ubuntu" label="Ubuntu 24.04">
 
 ```bash
-sudo apt install acpica-tools
+$ sudo apt install acpica-tools
 ```
 
   </TabItem>
   <TabItem value="fedora" label="Fedora 43">
 
 ```bash
-sudo dnf install acpica-tools
+$ sudo dnf install acpica-tools
+```
+
+  </TabItem>
+  <TabItem value="arch" label="Arch Linux">
+
+```bash
+$ sudo pacman -S acpica
 ```
 
   </TabItem>
@@ -360,7 +360,7 @@ sudo dnf install acpica-tools
 
 Verify the installation:
 ```bash
-iasl -v
+$ iasl -v
 ```
 
 You should see output similar to:
